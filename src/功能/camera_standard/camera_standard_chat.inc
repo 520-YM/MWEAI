@@ -330,7 +330,7 @@ static int camera_standard_chat(const wchar_t *text){
     }else if(!exact&&(wcsstr(text,L"正式")||wcsstr(text,L"出图"))){
         part_text_add(&out,L"正式图号需要工程已分配的年度流水。请提供完整图号，随后按标准件流程创建。\n");
     }else if(camera_reference_folder(reference)){
-        part_text_add(&out,L"当前 BWTL 的「公司标准件」目录中缺少「环境摄像头」资料，请核对标准源模型已登记。\n");
+        part_text_add(&out,L"当前 MWEAI 的「公司标准件」目录中缺少「环境摄像头」资料，请核对标准源模型已登记。\n");
     }else{
         if(!exact){
             swprintf_s(name,_countof(name),L"CAMERA_%08lX_%08lX",GetCurrentProcessId(),GetTickCount());

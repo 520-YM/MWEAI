@@ -3,7 +3,7 @@
 #endif
 
 static const wchar_t catalog_read_failed[]=L"当前会话的功能清单暂时无法读取，请稍后重试。";
-static const wchar_t catalog_heading[]=L"当前 Creo 会话加载的是 BWTL ";
+static const wchar_t catalog_heading[]=L"当前 Creo 会话加载的是 MWEAI ";
 static const wchar_t catalog_count_label[]=L"个可用功能入口";
 static const wchar_t catalog_usage[]=L"按各菜单中可选的操作统计，同一编号下的不同操作分别计入。";
 
@@ -69,7 +69,7 @@ static int catalog_collect(Catalog *list){
 static int catalog_quick_intent(const wchar_t *text,const wchar_t *recent){
     static const wchar_t *const versions[]={
         L"当前版本号",L"版本号",L"读取当前版本号",L"查看当前版本号",L"读取当前的版本号",
-        L"当前BWTL是什么版本",L"BWTL现在是什么版本",L"你现在是什么版本",L"现在插件是什么版本"
+        L"当前MWEAI是什么版本",L"MWEAI现在是什么版本",L"当前BWTL是什么版本",L"BWTL现在是什么版本",L"你现在是什么版本",L"现在插件是什么版本"
     };
     static const wchar_t *const counts[]={
         L"现在有多少项功能",L"现在有多少功能",L"现在有多少个功能",L"插件有多少功能",
@@ -101,7 +101,8 @@ static int catalog_quick_intent(const wchar_t *text,const wchar_t *recent){
     const wchar_t *answer=NULL;
     for(const wchar_t *turn=recent;(turn=wcsstr(turn,L"\n助手："))!=NULL;turn++)
         answer=turn+4;
-    if(answer&&!wcsncmp(answer,catalog_heading,wcslen(catalog_heading))&&wcsstr(answer,catalog_count_label)){
+    if(answer&&(!wcsncmp(answer,catalog_heading,wcslen(catalog_heading))||
+        wcsstr(answer,L"当前 Creo 会话加载的是 BWTL ")==answer)&&wcsstr(answer,catalog_count_label)){
         for(size_t i=4;i<_countof(all);i++)if(!wcscmp(request,all[i]))return SMART_INTENT_CATALOG_LIST;
     }
     return 0;
@@ -143,7 +144,7 @@ static wchar_t *catalog_message(int mode){
 
 static void catalog_prompt_write(FILE *prompt,const wchar_t *query){
     Catalog *list=calloc(1,sizeof(*list));
-    fwprintf(prompt,L"\n<本次运行的插件数据>\n当前加载的 BWTL 版本 %ls。",BWTL_BUILD_VERSION);
+    fwprintf(prompt,L"\n<本次运行的插件数据>\n当前加载的 MWEAI 版本 %ls。",BWTL_BUILD_VERSION);
     if(list&&catalog_collect(list)){
         fwprintf(prompt,L"本机当前有 %zu 个菜单功能入口。%ls\n",list->count,catalog_usage);
         static const wchar_t *const questions[]={L"功能",L"能力",L"支持",L"能不能",L"有没有",L"怎么用",L"可以做",L"会不会",L"能否"};
@@ -180,7 +181,7 @@ static int catalog_write_document(wchar_t *file,size_t capacity){
     if(!ok){free(list);return 0;}
     FILE *out=_wfopen(temporary,L"wt, ccs=UTF-8");
     if(!out){free(list);return 0;}
-    fwprintf(out,L"BWTL 当前功能列表\n%ls%ls，共 %zu %ls。\n%ls\n\n",
+    fwprintf(out,L"MWEAI 当前功能列表\n%ls%ls，共 %zu %ls。\n%ls\n\n",
         catalog_heading,BWTL_BUILD_VERSION,list->count,catalog_count_label,catalog_usage);
     fwprintf(out,L"Creo 回溯风险\n标记项目在特定参照、附加壁未完整生成或原生清理阶段有过 Creo 回溯。逐项触发条件、已验收范围及替代用法记录在下方文件。\n%ls\\docs\\Creo回溯风险重点提醒.md\n\n",
         runtime_root);

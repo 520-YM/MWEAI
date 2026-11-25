@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
+[assembly: AssemblyTitle("MWEAI 管理")]
+[assembly: AssemblyProduct("MWEAI")]
 class Manager {
  [STAThread] static int Main(string[] args) {
   try {
@@ -19,6 +21,6 @@ class Manager {
    Process.Start(p).Dispose();
    // Exit before deletion: the uninstaller can remove this launcher itself.
    return 0;
-  }catch(Exception e){MessageBox.Show(e.Message,"霸威天龙管理");return 1;}
+  }catch(Exception e){MessageBox.Show(e.Message,"MWEAI管理");return 1;}
  }
 }

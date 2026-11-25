@@ -3,10 +3,10 @@ static int native_ui_create(HWND owner,int show){
     const wchar_t *labels[3]={L"读取当前模型",L"发送给 AI",L"关闭"};
     int ids[3]={CHAT_READ,CHAT_SEND,CHAT_CLOSE};
     const wchar_t *top_labels[5]={L"插件功能",L"标准文件",L"工作目录",L"仿照模型",L"截图改图"};
-    wchar_t slot[12], title[32]=L"BWTL";
+    wchar_t slot[12], title[32]=L"MWEAI";
     DWORD slot_length=GetEnvironmentVariableW(L"BWTL_INSTANCE_NUMBER",slot,_countof(slot));
     if(slot_length && slot_length<_countof(slot) && wcsspn(slot,L"0123456789")==slot_length)
-        swprintf_s(title,_countof(title),L"BWTL · 会话 %ls",slot);
+        swprintf_s(title,_countof(title),L"MWEAI · 会话 %ls",slot);
     if(native_window){if(show)ShowWindow(native_window,SW_SHOWNOACTIVATE);return 1;}
     cls.lpfnWndProc=native_window_proc;cls.hInstance=module;cls.lpszClassName=L"CreoCodexNativeChatV11";
     cls.hCursor=LoadCursor(NULL,IDC_ARROW);cls.hbrBackground=(HBRUSH)(COLOR_BTNFACE+1);

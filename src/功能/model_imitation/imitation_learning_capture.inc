@@ -192,7 +192,7 @@ static ProError method_save(ModelingLesson *lesson,PartText *out){
         return PRO_TK_CANT_WRITE;
     }
     wcscpy_s(lesson->saved,_countof(lesson->saved),path);
-    part_text_add(out,L"已学习 %ls 的建模方法，并保存为独立文件。之后建模时，BWTL 会按新需求选用相关做法。\n%ls\n",
+    part_text_add(out,L"已学习 %ls 的建模方法，并保存为独立文件。之后建模时，MWEAI 会按新需求选用相关做法。\n%ls\n",
         lesson->source,path);
     return PRO_TK_NO_ERROR;
 }

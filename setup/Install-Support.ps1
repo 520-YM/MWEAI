@@ -9,7 +9,7 @@ function Export-BwtlDiagnostics {
     param([string]$Root)
     $Root=[IO.Path]::GetFullPath($Root)
     $lines=[Collections.Generic.List[string]]::new()
-    $lines.Add('BWTL installation diagnostics '+(Get-Date -Format o))
+    $lines.Add('MWEAI installation diagnostics '+(Get-Date -Format o))
     $lines.Add('Root: '+$Root)
     $lines.Add('OS64: '+[Environment]::Is64BitOperatingSystem)
     $statePath=Join-Path $Root 'active.json'
@@ -50,7 +50,7 @@ function Export-BwtlDiagnostics {
     $lines.Add('Registration present does NOT prove Creo has loaded this config or the DLL.')
     $lines.Add('Codex login is needed for AI, not for the native ribbon entry. No credentials or chat contents collected.')
     $dir=Join-Path $Root 'diagnostics';New-Item -ItemType Directory -Path $dir -Force|Out-Null
-    $path=Join-Path $dir ('BWTL-diagnostics-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'.txt')
+    $path=Join-Path $dir ('MWEAI-diagnostics-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'.txt')
     [IO.File]::WriteAllLines($path,$lines,[Text.UTF8Encoding]::new($true))
     return $path
 }

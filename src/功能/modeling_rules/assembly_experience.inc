@@ -71,7 +71,7 @@ static int experience_save(const wchar_t *content,wchar_t path[MAX_PATH]){
     wchar_t *document=calloc(EXPERIENCE_TEXT_MAX,sizeof(wchar_t));
     if(!document)ok=0;
     if(ok)ok=swprintf_s(document,EXPERIENCE_TEXT_MAX,
-        L"BWTL 装配经验规则\n保存时间 %04u-%02u-%02u %02u:%02u:%02u\n"
+        L"MWEAI 装配经验规则\n保存时间 %04u-%02u-%02u %02u:%02u:%02u\n"
         L"来源为用户明确保存的本次对话内容。用于后续设计参考，具体模型、尺寸和定位参照在执行时核对。\n\n%ls",
         now.wYear,now.wMonth,now.wDay,now.wHour,now.wMinute,now.wSecond,content)>=0;
     int size=ok?WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,document,-1,NULL,0,NULL,NULL):0;

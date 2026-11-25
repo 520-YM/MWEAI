@@ -7,7 +7,7 @@ static ProError rf_execute(const PartCommand *cmd,ProMdl model,wchar_t *report,s
     ProError e;
     int bodies=0,i,mirror_adds=0;
     double volume=0;
-    if(mc_recovery_uncertain){wcscpy_s(report,capacity,L"先前操作恢复未能核实，本次会话已停止加工写入。请检查零件后重新启动独立 BWTL。");return PRO_TK_BAD_CONTEXT;}
+    if(mc_recovery_uncertain){wcscpy_s(report,capacity,L"先前操作恢复未能核实，本次会话已停止加工写入。请检查零件后重新启动独立 MWEAI。");return PRO_TK_BAD_CONTEXT;}
     if(!wcscmp(verb,L"FEATURE_DELETE"))return rf_delete(cmd,model,report,capacity);
     if((e=fd_begin(&tx,model,cmd->arg[2],type)))goto done;
     tx.stage="verify existing healthy single solid body";

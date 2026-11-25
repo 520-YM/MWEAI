@@ -64,7 +64,7 @@ static void native_company_action(void){
         swprintf_s(standards,MAX_PATH,L"%ls\\公司标准",root)<0||
         swprintf_s(technical,MAX_PATH,L"%ls\\技术文件",root)<0||
         !native_company_folder(root)||!native_company_folder(standards)||!native_company_folder(technical)){
-        MessageBoxW(native_window,L"无法建立公司资料目录，请检查本机目录权限。",L"BWTL",MB_OK|MB_ICONWARNING);
+        MessageBoxW(native_window,L"无法建立公司资料目录，请检查本机目录权限。",L"MWEAI",MB_OK|MB_ICONWARNING);
         return;
     }
     const wchar_t *path=root;

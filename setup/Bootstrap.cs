@@ -4,11 +4,14 @@ using System.IO.Compression;
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows.Forms;
+[assembly: AssemblyTitle("MWEAI 安装")]
+[assembly: AssemblyProduct("MWEAI")]
 class Setup {
  static string PayloadParent() {
-  string managed=Environment.GetEnvironmentVariable("BWTL_INSTALL_ROOT",EnvironmentVariableTarget.User);
+  string managed=Environment.GetEnvironmentVariable("MWEAI_INSTALL_ROOT",EnvironmentVariableTarget.User);
+  if(String.IsNullOrEmpty(managed))managed=Environment.GetEnvironmentVariable("BWTL_INSTALL_ROOT",EnvironmentVariableTarget.User);
   string root=!String.IsNullOrEmpty(managed)&&Directory.Exists(managed)?Path.GetFullPath(managed):Path.GetTempPath();
-  return Path.Combine(root,"BWTL-Setup");
+  return Path.Combine(root,"MWEAI-Setup");
  }
  static void CleanTemporaryPayload(string root,string temporaryParent) {
   if(String.IsNullOrEmpty(root)||!Directory.Exists(root))return;
@@ -28,7 +31,7 @@ class Setup {
    string root=extractOnly?Path.GetFullPath(args[1]):Path.Combine(temporaryParent,Guid.NewGuid().ToString("N"));
    if(!extractOnly)temporary=root;
    if(extractOnly && Directory.Exists(root))throw new Exception("测试提取目录已存在");Directory.CreateDirectory(root);
-   using(Stream payload=Assembly.GetExecutingAssembly().GetManifestResourceStream("BWTLPayload"))
+   using(Stream payload=Assembly.GetExecutingAssembly().GetManifestResourceStream("MWEAIPayload"))
    using(var zip=new ZipArchive(payload,ZipArchiveMode.Read)) {
     foreach(var entry in zip.Entries) {
      string destination=Path.GetFullPath(Path.Combine(root,entry.FullName.Replace('/',Path.DirectorySeparatorChar)));
@@ -42,7 +45,7 @@ class Setup {
    p.Arguments="-NoProfile -ExecutionPolicy Bypass -File \""+Path.Combine(root,"setup","Install-BWTL.ps1")+"\" -PackageRoot \""+root+"\"";
    p.UseShellExecute=false;p.CreateNoWindow=true;p.WindowStyle=ProcessWindowStyle.Hidden;
    using(var process=Process.Start(p)){process.WaitForExit();return process.ExitCode;}
-  } catch(Exception e) {if(args.Length>0)return 1;MessageBox.Show(e.Message,"霸威天龙安装失败");return 1;}
+  } catch(Exception e) {if(args.Length>0)return 1;MessageBox.Show(e.Message,"MWEAI安装失败");return 1;}
   finally {try{CleanTemporaryPayload(temporary,temporaryParent);}catch{/* A locked payload is left for OS temporary-file cleanup. */}}
  }
 }

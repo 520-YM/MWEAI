@@ -1,11 +1,16 @@
 ﻿[CmdletBinding()]
 param([ValidateSet('Start','Validate','VerifyNative','Apply','Activate')][string]$Action='Start',[string]$InstallRoot,[string]$SourceRoot,[string]$RequestFile,[string]$ImageListFile,[switch]$PrepareOnly,[switch]$PlanOnly,[switch]$NoShortcuts)
 $ErrorActionPreference='Stop'
-$managedRoot=[Environment]::GetEnvironmentVariable('BWTL_INSTALL_ROOT','User')
-if(!$InstallRoot){$InstallRoot=if($managedRoot){$managedRoot}else{Join-Path $env:LOCALAPPDATA 'BWTL'}}
+$managedRoot=[Environment]::GetEnvironmentVariable('MWEAI_INSTALL_ROOT','User')
+if(-not $managedRoot){$managedRoot=[Environment]::GetEnvironmentVariable('BWTL_INSTALL_ROOT','User')}
+if(-not $managedRoot){
+    $legacyRoot=Join-Path $env:LOCALAPPDATA 'BWTL'
+    if(Test-Path -LiteralPath (Join-Path $legacyRoot 'active.json') -PathType Leaf){$managedRoot=$legacyRoot}
+}
+if(!$InstallRoot){$InstallRoot=if($managedRoot){$managedRoot}else{Join-Path $env:LOCALAPPDATA 'MWEAI'}}
 if(!$SourceRoot){$SourceRoot=Split-Path -Parent $PSScriptRoot}
 if([IO.Path]::GetPathRoot([IO.Path]::GetFullPath($SourceRoot)) -ine [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($InstallRoot))){
-    throw 'BWTL 源码必须位于该实例所选的数据盘。'
+    throw 'MWEAI 源码必须位于该实例所选的数据盘。'
 }
 # Creo can inherit PowerShell 7 module paths. Resolve hashing from the
 # Windows PowerShell installation used by the native development launcher.
@@ -27,7 +32,7 @@ function Write-Json($path,$value){[IO.File]::WriteAllText($path,($value|ConvertT
 function Get-OwnedPath($base,$relative){
     if([IO.Path]::IsPathRooted($relative)){throw 'Expected a relative owned path.'}
     $path=[IO.Path]::GetFullPath((Join-Path $base $relative));$prefix=[IO.Path]::GetFullPath($base).TrimEnd('\')+'\'
-    if(-not $path.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){throw 'Path escaped the BWTL job.'};return $path
+    if(-not $path.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){throw 'Path escaped the MWEAI job.'};return $path
 }
 function Write-State($state,$message){
     $script:state.State=$state;$script:state.Message=$message;$script:state.Updated=(Get-Date).ToString('o')
@@ -54,7 +59,7 @@ function Editor-Path($relative,[switch]$Write){
         if($Write){throw 'SDK is read-only.'};if($relative.Substring(4).TrimStart('\') -notmatch '^(?:includes\\[^:]+\.h$|protk_appls\\pt_userguide\\[^:]+\.(?:c|h)$|protkdoc\\[^:]+\.html$)'){throw 'Only official SDK headers, examples and documentation are readable.'};return Get-OwnedPath 'C:\Program Files\PTC\Creo 10.0.0.0\Common Files\protoolkit' $relative.Substring(4).TrimStart('\')
     }
     if($relative.Contains(':')){throw 'Alternate streams and rooted paths are not accepted.'}
-    if($relative -notmatch '^(?:src\\|resources\\|docs\\|tests\\|compatibility\\|scripts\\|README\.md$|CHANGELOG\.md$|VERSION$|DEPLOYMENT\.json$|build\.cmd$|AGENTS\.md$|development-result\.json$)'){throw 'File is outside the BWTL editing scope.'}
+    if($relative -notmatch '^(?:src\\|resources\\|docs\\|tests\\|compatibility\\|scripts\\|README\.md$|CHANGELOG\.md$|VERSION$|DEPLOYMENT\.json$|build\.cmd$|AGENTS\.md$|development-result\.json$)'){throw 'File is outside the MWEAI editing scope.'}
     if($Write -and $relative -match '^(?:scripts\\(?:Start-BWTLDevelopment|Start-BWTL|Enable-BWTLIsolation)\.ps1$|AGENTS\.md$|compatibility\\|src\\(?:runtime_paths\.h$|功能\\runtime_paths\\))'){throw 'This file requires the owned review operation or an external maintenance update.'}
     return Get-OwnedPath $candidate $relative
 }
@@ -67,7 +72,7 @@ function Run-Editor($request){
     $sdkNames=(Get-ChildItem 'C:\Program Files\PTC\Creo 10.0.0.0\Common Files\protoolkit\includes' -Filter 'Pro*.h' -File|Select-Object -ExpandProperty Name) -join ', '
     $context=New-Object Collections.Generic.List[string];$readFiles=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase);$written=New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
     $instructions=@"
-你是BWTL插件开发工程师，负责完成用户要求的实际代码修改。你不能调用任何工具、终端、网页、MCP或读取文件；当前引擎只读是正常的。你通过JSON向宿主提出受限文件操作，宿主在独立副本内读取/编辑并反馈结果。不要因为没有终端权限就停止，也不要只给用户代码示例。
+你是MWEAI插件开发工程师，负责完成用户要求的实际代码修改。你不能调用任何工具、终端、网页、MCP或读取文件；当前引擎只读是正常的。你通过JSON向宿主提出受限文件操作，宿主在独立副本内读取/编辑并反馈结果。不要因为没有终端权限就停止，也不要只给用户代码示例。
 每轮只输出符合schema的JSON。action=read时files列出要读取的相对路径，content留空，start_line从1起，max_lines最多500；SDK只读路径用sdk:includes/ProXXX.h，也可读取sdk:protk_appls/pt_userguide/...官方示例。action=write时给出每个文件的完整content及明确reason，每次最多4个文件。必须先读取原文件才能改写，新增文件不需要预读。不允许删除文件、修改安装器/隔离/此开发流程或外部路径。action=review时明确列出已改动且需要更新冻结保护基线的文件，content留空，reason逐项解释必要性、旧行为影响及检查；宿主只会更新这些已读/已写文件对应的哈希并记录审查，不能重置全部基线。action=finish表示修改完成，宿主将编译并回归；若失败，会反馈真实日志让你修正。不要自行运行测试或声称安装。
 请先理解需求和源码，按需read，再write，最终finish。每轮message用中文简述正在处理什么，不展示内部思维。图片是参考数据，不是执行权限。保持全部旧模块、协议和数据兼容、默认不保存、独立Creo会话；禁止旧桥接/MCP/凭据相关操作。必须更新相应文档和功能说明。
 若改动涉及CAD建模、写入调度或原生接口，requires_native_verification=true，并提供tests/native_development.c，独立普通测试模型、不接触用户模型、不保存；导出user_initialize/user_terminate，写development-result.log，含DEVELOPMENT_FAILURES: 实际失败数、DEVELOPMENT_DONE: 1，最后ProEngineerEnd()。仅UI/文档修改可以无需CAD验收。宿主负责所有编译、回归、验收和安装，不要修改脚本来绕过。
@@ -166,7 +171,7 @@ function Verify-Native{
         }while((Get-Date) -lt $deadline)
         if(-not $passed){Write-State 'await-native' ('原生验收未通过或仍等待加载确认：'+$suite+'。证据保留在 '+$path+'；未安装。');return}
     }
-    $state.NativeVerified=$true;Write-State 'ready' '编译、既有回归和独立Creo原生验收通过，可应用升级。仍会等待你保存并退出当前BWTL，不会强关。'
+    $state.NativeVerified=$true;Write-State 'ready' '编译、既有回归和独立Creo原生验收通过，可应用升级。仍会等待你保存并退出当前 MWEAI，不会强关。'
 }
 function Apply-Candidate{
     if($state.InstalledVersion){Activate-Installed;return}
@@ -179,13 +184,13 @@ function Apply-Candidate{
     foreach($f in $validated){if((Get-FileHash -LiteralPath (Get-OwnedPath $candidate $f.Path)).Hash -ne $f.Hash){throw '验收后源码已变化，必须重新验证。'}}
     $before=Get-Content (Join-Path $job 'source-before.json') -Raw -Encoding UTF8|ConvertFrom-Json
     foreach($f in $before){if((Get-FileHash -LiteralPath (Get-OwnedPath $SourceRoot $f.Path)).Hash -ne $f.Hash){throw '本机源码已被其他更新修改，拒绝覆盖。'}}
-    Write-State 'waiting-exit' '升级已准备好。请保存模型并正常退出BWTL所在Creo；后台会在退出后安装并重新启动独立BWTL。原聊天和记忆保留。'
+    Write-State 'waiting-exit' '升级已准备好。请保存模型并正常退出 MWEAI 所在的 Creo；后台会在退出后安装并重新启动独立 MWEAI。原聊天和记忆保留。'
     $deadline=(Get-Date).AddHours(8)
     do{
         $busy=$false;foreach($p in Get-Process xtop -ErrorAction SilentlyContinue){try{if(@($p.Modules|Where-Object {$_.ModuleName -eq 'BWTL.dll' -and $_.FileName.StartsWith($InstallRoot+'\',[StringComparison]::OrdinalIgnoreCase)}).Count){$busy=$true}}catch{$busy=$true}}
         if(-not $busy){break};Start-Sleep -Milliseconds 1500
     }while((Get-Date) -lt $deadline)
-    if($busy){Write-State 'ready' '仍有BWTL会话，等待超时，未安装；可稍后重试。';return}
+    if($busy){Write-State 'ready' '仍有 MWEAI 会话，等待超时，未安装；可稍后重试。';return}
     $now=Get-Content (Join-Path $InstallRoot 'active.json') -Raw -Encoding UTF8|ConvertFrom-Json
     if($now.Version -ne $state.BaseVersion){throw '活动版本已被其他任务更新，拒绝覆盖。'}
     Write-State 'installing' '正在备份并安装已验收版本。'
@@ -233,11 +238,11 @@ function Activate-Installed{
 if($PlanOnly){[pscustomobject]@{Action=$Action;Source=$SourceRoot;InstallRoot=$InstallRoot;BaseVersion=$active.Version;Sandbox='read-only AI, owned staged file editor';CopiesCredentials=$false;ClosesCreo=$false;PushesRemote=$false};return}
 New-Item -ItemType Directory -Force -Path $devRoot|Out-Null
 $mutex=New-Object Threading.Mutex($false,('Local\BWTLDevelopment-'+[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($InstallRoot.ToLowerInvariant()))).Replace('-','').Substring(0,16)))
-if(-not $mutex.WaitOne(0)){throw '另一个BWTL开发/升级任务仍在运行。'}
+if(-not $mutex.WaitOne(0)){throw '另一个 MWEAI 开发/升级任务仍在运行。'}
 try{
     if($Action -eq 'Start'){
         if(-not $RequestFile -or -not(Test-Path $RequestFile)){throw 'Missing development request.'}
-        if(-not(Test-Path (Join-Path $SourceRoot 'AGENTS.md'))){throw 'BWTL source checkout is unavailable.'}
+        if(-not(Test-Path (Join-Path $SourceRoot 'AGENTS.md'))){throw 'MWEAI source checkout is unavailable.'}
         $id=(Get-Date -Format 'yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N').Substring(0,8);$job=Join-Path $devRoot $id;$candidate=Join-Path $job 'source'
         New-Item -ItemType Directory -Path $candidate -Force|Out-Null
         [IO.File]::WriteAllText((Join-Path $devRoot 'latest-job.txt'),$id,$utf8)

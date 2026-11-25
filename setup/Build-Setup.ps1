@@ -14,8 +14,8 @@ if($WorkDirectory -eq $SourceRoot -or $WorkDirectory.StartsWith($SourceRoot+'\',
 if(-not $OutputDirectory){$OutputDirectory=Join-Path $SourceRoot 'dist'}
 $version=[IO.File]::ReadAllText((Join-Path $SourceRoot 'VERSION')).Trim()
 if($version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.]+)?$'){throw 'Invalid release version.'}
-$exe=Join-Path $OutputDirectory "BWTL-Setup-$version.exe"
-$zip=Join-Path $OutputDirectory "BWTL-$version-windows-x64.zip"
+$exe=Join-Path $OutputDirectory "MWEAI-Setup-$version.exe"
+$zip=Join-Path $OutputDirectory "MWEAI-$version-windows-x64.zip"
 $checksums=Join-Path $OutputDirectory "SHA256SUMS-$version.txt"
 foreach($file in @($exe,$zip,$checksums)){if(Test-Path -LiteralPath $file){throw "Release artifact already exists: $file"}}
 $metadata=Get-Content -LiteralPath (Join-Path $SourceRoot 'DEPLOYMENT.json') -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -29,8 +29,9 @@ foreach($name in @('resources','src','docs','setup','compatibility','scripts','V
 }
 Get-ChildItem -LiteralPath (Join-Path $SourceRoot 'tests') -File | Copy-Item -Destination (Join-Path $stage 'tests')
 Copy-Item -LiteralPath $dll -Destination (Join-Path $stage 'bin\BWTL.dll')
-$featureList=Get-ChildItem -LiteralPath (Join-Path $SourceRoot 'docs') -Filter 'BWTL *.txt' | Select-Object -First 1
-Copy-Item -LiteralPath $featureList.FullName -Destination (Join-Path $stage 'seed\feature-guide.md')
+$featureList=Join-Path $SourceRoot 'docs\MWEAI 功能列表.txt'
+if(-not (Test-Path -LiteralPath $featureList -PathType Leaf)){$featureList=Join-Path $SourceRoot 'docs\BWTL 功能列表.txt'}
+Copy-Item -LiteralPath $featureList -Destination (Join-Path $stage 'seed\feature-guide.md')
 foreach($name in @(
     '装配方法库\BWTL-DEMO-CSYS.bwtlasm.txt'
     '建模方法库\BWTL-DEMO-SHEET-CUT.bwtlmethod.txt'
@@ -46,7 +47,7 @@ $utf8=[Text.UTF8Encoding]::new($false)
 [IO.File]::WriteAllText((Join-Path $stage 'payload-manifest.json'),($manifest|ConvertTo-Json -Depth 4),$utf8)
 [IO.Compression.ZipFile]::CreateFromDirectory($stage,$zip,[IO.Compression.CompressionLevel]::Optimal,$false)
 $csc=Join-Path $env:SystemRoot 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-& $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll ("/resource:$zip,BWTLPayload") ("/out:$exe") (Join-Path $SourceRoot 'setup\Bootstrap.cs')
+& $csc /nologo /target:winexe /platform:x64 /optimize+ /codepage:65001 /reference:System.Windows.Forms.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll ("/resource:$zip,MWEAIPayload") ("/out:$exe") (Join-Path $SourceRoot 'setup\Bootstrap.cs')
 if($LASTEXITCODE -ne 0){throw 'Installer compiler failed.'}
 $lines=@($exe,$zip|ForEach-Object {(Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant()+'  '+[IO.Path]::GetFileName($_)})
 [IO.File]::WriteAllLines($checksums,$lines,$utf8)

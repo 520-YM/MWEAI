@@ -32,17 +32,10 @@ jobs:
             echo "Tag already exists without a release; investigate rather than overwrite it."
             exit 1
           fi
-          setup_asset=()
-          if [[ -f "dist/BWTL-Setup-$version.exe" ]]; then
-            setup_asset+=("dist/BWTL-Setup-$version.exe")
-          fi
-          legacy_assets=()
-          if [[ "$version" == "0.21.2-preview.1" ]]; then
-            legacy_assets+=("dist/BWTL-owner-data-$version.zip" archive/v18-local-snapshot.tar.xz)
-          fi
-          gh release create "$tag" "${setup_asset[@]}" \
-            "dist/BWTL-$version-windows-x64.zip" \
-            "${legacy_assets[@]}" "dist/SHA256SUMS-$version.txt" \
+          gh release create "$tag" \
+            "dist/MWEAI-Setup-$version.exe" \
+            "dist/MWEAI-$version-windows-x64.zip" \
+            "dist/SHA256SUMS-$version.txt" \
             --target "$GITHUB_SHA" --prerelease \
-            --title "霸威天龙 $version" \
+            --title "MWEAI $version" \
             --notes-file "docs/releases/$version.md"

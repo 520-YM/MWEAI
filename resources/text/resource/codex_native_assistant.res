@@ -8,9 +8,9 @@
   (PushButton Close)
  )
  (Resources
-  (.Label "BWTL")
+  (.Label "MWEAI")
   (.Resizeable True)
-  (Heading.Label "Codex AI / Template modeling / Auto execute")
+  (Heading.Label "MWEAI / Creo modeling assistant")
   (History.Columns 64)
   (History.Rows 16)
   (History.MinRows 8)

@@ -4,7 +4,7 @@ static ProError md_execute(const PartCommand *cmd,ProMdl model,wchar_t *report,s
     ProFeattype type=k<=MD_SHELL_LOCAL?PRO_FEAT_SHELL:k<=MD_DRAFT_VARIABLE?PRO_FEAT_DRAFT:k>=MD_WINDOW?PRO_FEAT_CUT:PRO_FEAT_PROTRUSION;
     const wchar_t *labels[]={L"",L"多面开口抽壳",L"局部变壁厚抽壳",L"多面同步拔模",L"分割拔模",L"可变角拔模",L"带拔模轨迹筋",L"螺钉柱",L"卡扣",L"配合窗口",L"端面密封圈槽",L"径向密封圈槽",L"毛坯加工余量"};
     if(structural_plan_valid(cmd->count,(wchar_t (*)[PART_TOKEN_MAX])cmd->arg)!=1)return PRO_TK_BAD_INPUTS;
-    if(md_recovery_uncertain){wcscpy_s(report,capacity,L"上次结构特征的恢复未能核实，请检查模型后重新启动此独立 BWTL 会话。");return PRO_TK_BAD_CONTEXT;}
+    if(md_recovery_uncertain){wcscpy_s(report,capacity,L"上次结构特征的恢复未能核实，请检查模型后重新启动此独立 MWEAI 会话。");return PRO_TK_BAD_CONTEXT;}
     if(k==MD_STOCK)return md_stock(cmd,model,report,capacity);
 #define MD(call,label) do{tx.stage=label;e=(call);trace(label,e);if(e)goto done;}while(0)
     MD(fd_begin(&tx,model,cmd->arg[2],type),"prepare structural feature");

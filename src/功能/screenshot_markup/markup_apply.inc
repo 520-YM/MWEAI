@@ -149,8 +149,8 @@ static int markup_native_command(uiCmdCmdId id,uiCmdValue *value,void *data){
     markup_pending=0;
     if(!native_window||!action)return 0;
     if(smart_active||ai_process||native_busy){
-        if(action!=1)markup_deliver(markup_request.ticket,0,0,L"当前 BWTL 有任务正在运行。完成后可重试。");
-        else markup_deliver(0,0,0,L"当前 BWTL 有任务正在运行。完成后可重新截图。");
+        if(action!=1)markup_deliver(markup_request.ticket,0,0,L"当前 MWEAI 有任务正在运行。完成后可重试。");
+        else markup_deliver(0,0,0,L"当前 MWEAI 有任务正在运行。完成后可重新截图。");
         return 0;
     }
     if(action==1){

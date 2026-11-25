@@ -1,9 +1,9 @@
 CodexNativeLabel
-BWTL
+MWEAI
 #
 CodexNativeHelp
-Open the native Creo assistant window
+Open MWEAI in Creo
 #
 CodexNativeDescription
-Native modeless assistant window. No browser. AI is not connected yet.
+MWEAI modeling and chat assistant.
 #

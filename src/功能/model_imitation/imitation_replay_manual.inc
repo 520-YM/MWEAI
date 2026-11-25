@@ -30,7 +30,7 @@ static ProError replay_manual_reference(ImitationReplay *replay,ProFeature *feat
         replay->current_feature,feature->id,search->count,type==PRO_EDGE?L"边":L"面");
     const int visible=native_window&&IsWindowVisible(native_window);
     if(visible)ShowWindow(native_window,SW_HIDE);
-    int proceed=MessageBoxW(NULL,message,L"BWTL · 指定参照",MB_OKCANCEL|MB_ICONINFORMATION|MB_SETFOREGROUND);
+    int proceed=MessageBoxW(NULL,message,L"MWEAI · 指定参照",MB_OKCANCEL|MB_ICONINFORMATION|MB_SETFOREGROUND);
     error=PRO_TK_USER_ABORT;
     if(proceed==IDOK){
         ProSelection *items=NULL;

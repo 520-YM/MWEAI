@@ -9,7 +9,7 @@ static ProError mc_execute(const PartCommand *cmd,ProMdl model,wchar_t *report,s
     report[0]=0;
     if(machining_plan_valid(cmd->count,(wchar_t (*)[PART_TOKEN_MAX])cmd->arg)!=1){wcscpy_s(report,capacity,L"加工协议无效，未调用写接口。");return PRO_TK_BAD_INPUTS;}
     if(!wcscmp(cmd->arg[0],L"MACHINING_INFO"))return mc_references(model,report,capacity);
-    if(mc_recovery_uncertain){wcscpy_s(report,capacity,L"先前加工恢复未能核实，本次会话已停止加工写入；请检查模型后重新启动独立BWTL。");return PRO_TK_BAD_CONTEXT;}
+    if(mc_recovery_uncertain){wcscpy_s(report,capacity,L"先前加工恢复未能核实，本次会话已停止加工写入；请检查模型后重新启动独立MWEAI。");return PRO_TK_BAD_CONTEXT;}
     tx.stage="validate ordinary single-body part";
     if((e=fd_begin(&tx,model,cmd->arg[2],type)))goto done;
     tx.stage="validate existing single solid body";

@@ -207,7 +207,7 @@ static ProError ax_study_apply(ProMdl assembly,const wchar_t *source,const wchar
         return PRO_TK_INCOMPLETE;
     }
     if(save&&(!ax_study_receipt_file(source,id,target,receipt)||!ax_study_case_stamp(source,&case_stamp)||!storage_prepare_output())){
-        part_text_add(out,L"保存需要选好 BWTL 当前数据盘上的 Creo 工作目录。\n");
+        part_text_add(out,L"保存需要选好 MWEAI 当前数据盘上的 Creo 工作目录。\n");
         return PRO_TK_CANT_WRITE;
     }
     ProMdl child=NULL;

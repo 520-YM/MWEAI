@@ -3,8 +3,13 @@ param([string]$PackageRoot,[string]$InstallRoot,[string]$ConfigPath,[string]$Cod
 $ErrorActionPreference='Stop'
 if(-not $PackageRoot){$PackageRoot=Split-Path -Parent $MyInvocation.MyCommand.Path}
 $script:utf8=[Text.UTF8Encoding]::new($false)
-$managedRoot=[Environment]::GetEnvironmentVariable('BWTL_INSTALL_ROOT','User')
-if(-not $InstallRoot){$InstallRoot=if($managedRoot){$managedRoot}else{Join-Path $env:LOCALAPPDATA 'BWTL'}}
+$managedRoot=[Environment]::GetEnvironmentVariable('MWEAI_INSTALL_ROOT','User')
+if(-not $managedRoot){$managedRoot=[Environment]::GetEnvironmentVariable('BWTL_INSTALL_ROOT','User')}
+if(-not $managedRoot){
+    $legacyRoot=Join-Path $env:LOCALAPPDATA 'BWTL'
+    if(Test-Path -LiteralPath (Join-Path $legacyRoot 'active.json') -PathType Leaf){$managedRoot=$legacyRoot}
+}
+if(-not $InstallRoot){$InstallRoot=if($managedRoot){$managedRoot}else{Join-Path $env:LOCALAPPDATA 'MWEAI'}}
 $InstallRoot=[IO.Path]::GetFullPath($InstallRoot)
 $PackageRoot=[IO.Path]::GetFullPath($PackageRoot)
 if(-not(Test-Path -LiteralPath (Join-Path $PackageRoot 'VERSION')) -and (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) 'VERSION'))){$PackageRoot=Split-Path -Parent $PSScriptRoot}
@@ -26,7 +31,7 @@ function Native-Path($Path){
     if($full -notmatch '[^\x21-\x7e]'){return $full}
     if(-not('BwtlNativePath' -as [type])){Add-Type -TypeDefinition 'using System;using System.Text;using System.Runtime.InteropServices;public static class BwtlNativePath{[DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]public static extern uint GetShortPathName(string path,StringBuilder output,uint size);}'}
     $buffer=[Text.StringBuilder]::new(1024);$n=[BwtlNativePath]::GetShortPathName($full,$buffer,1024)
-    if(-not $n -or $buffer.ToString() -match '[^\x21-\x7e]'){throw 'Creo注册不支持此中文/空格路径且系统没有可用短路径。请选择纯英文、无空格的可写安装目录，例如 D:\BWTL。'}
+    if(-not $n -or $buffer.ToString() -match '[^\x21-\x7e]'){throw 'Creo注册不支持此中文/空格路径且系统没有可用短路径。请选择纯英文、无空格的可写安装目录，例如 D:\MWEAI。'}
     return $buffer.ToString()
 }
 function Get-Candidates {
@@ -91,12 +96,13 @@ function Add-Seed($Data,$Seed,$Version){
 }
 function Set-Registration($VersionDirectory){
     $registration=Join-Path $InstallRoot 'protk.dat';$native=Native-Path $VersionDirectory;$dll=Join-Path $native 'bin\BWTL.dll';$resources=Join-Path $native 'resources'
-    [IO.File]::WriteAllText($registration,"NAME BWTL`r`nSTARTUP dll`r`nEXEC_FILE $dll`r`nTEXT_DIR $resources`r`nALLOW_STOP TRUE`r`nDELAY_START FALSE`r`nEND`r`n",$script:utf8)
+    $displayName=if(Test-Path -LiteralPath (Join-Path $VersionDirectory 'setup\MWEAI-Manage.exe') -PathType Leaf){'MWEAI'}else{'BWTL'}
+    [IO.File]::WriteAllText($registration,"NAME $displayName`r`nSTARTUP dll`r`nEXEC_FILE $dll`r`nTEXT_DIR $resources`r`nALLOW_STOP TRUE`r`nDELAY_START FALSE`r`nEND`r`n",$script:utf8)
 }
 function Get-Isolation($Root){
     $path=Join-Path $Root 'isolation.json'
     if(Test-Path -LiteralPath $path){return Get-Content -LiteralPath $path -Raw -Encoding UTF8|ConvertFrom-Json}
-    if(Test-Path -LiteralPath (Join-Path $Root 'active.json')){throw '此安装使用旧的共享配置。请先按发行说明迁移到 BWTL 专用配置。'}
+    if(Test-Path -LiteralPath (Join-Path $Root 'active.json')){throw '此安装使用旧的共享配置。请先按发行说明迁移到 MWEAI 专用配置。'}
     $profile=$Root.TrimEnd('\')+'-Profile'
     [pscustomobject]@{
         ProfileRoot=$profile;Home=(Join-Path $profile 'home');Alternate=(Join-Path $profile 'alternate')
@@ -112,7 +118,7 @@ function Assert-ReleaseDataPath([string]$Path,[string]$Drive) {
     if(!$Path -or [IO.Path]::GetPathRoot($Path) -ine $Drive){throw "安装目录、数据及 Creo 专用配置必须位于所选数据盘 $Drive"}
     for($parent=[IO.Path]::GetFullPath($Path);$parent;$parent=Split-Path -Parent $parent){
         if((Test-Path -LiteralPath $parent) -and ((Get-Item -LiteralPath $parent -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)){
-            throw 'BWTL 数据路径不能经过链接或目录联接。'
+            throw 'MWEAI 数据路径不能经过链接或目录联接。'
         }
     }
 }
@@ -130,16 +136,16 @@ function Invoke-Install {
         Assert-ReleaseDataPath $path $dataDrive
     }
     $ConfigPath=if($ConfigPath){[IO.Path]::GetFullPath($ConfigPath)}else{$isolation.Config}
-    if($ConfigPath -ine $isolation.Config){throw '本版本只允许更新BWTL专用配置，不修改旧Codex–Creo注册。'}
+    if($ConfigPath -ine $isolation.Config){throw '本版本只允许更新MWEAI专用配置，不修改旧Codex–Creo注册。'}
     [void](Assert-ManagedTree $InstallRoot)
     if($InstallRoot.TrimEnd('\') -ieq $PackageRoot.TrimEnd('\') -or $InstallRoot.StartsWith($PackageRoot.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)){throw '安装目录不能位于安装包临时解压目录内。'}
     if($ConfigPath.StartsWith($InstallRoot.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Creo配置文件不能放在插件安装目录内。'}
     Assert-Path $InstallRoot;Assert-Path $ConfigPath;if($CodexPath){Assert-Path $CodexPath;if(-not(Test-Path -LiteralPath $CodexPath -PathType Leaf) -or [IO.Path]::GetFileName($CodexPath) -ine 'codex.exe'){throw '请选择有效的 codex.exe。'}}
-    if([IO.Path]::GetFileName($ConfigPath) -ine 'config.pro' -or (-not $newProfile -and -not(Test-Path -LiteralPath (Split-Path -Parent $ConfigPath)))){throw 'BWTL 专用 config.pro 路径无效。'}
-    if($newProfile -and (Test-Path -LiteralPath $isolation.ProfileRoot)){throw 'BWTL 专用配置目录已存在。请选择另一安装目录或恢复原 isolation.json。'}
+    if([IO.Path]::GetFileName($ConfigPath) -ine 'config.pro' -or (-not $newProfile -and -not(Test-Path -LiteralPath (Split-Path -Parent $ConfigPath)))){throw 'MWEAI 专用 config.pro 路径无效。'}
+    if($newProfile -and (Test-Path -LiteralPath $isolation.ProfileRoot)){throw 'MWEAI 专用配置目录已存在。请选择另一安装目录或恢复原 isolation.json。'}
     if(-not(Test-Path -LiteralPath $isolation.CreoExecutable -PathType Leaf)){throw '未找到 Creo Parametric，请填写 parametric.exe 的完整路径。'}
     if((Test-Path -LiteralPath $ConfigPath) -and ((Read-Config $ConfigPath).Text -match '(?i)creo_safe_resident|CreoSafeResident')){
-        throw 'BWTL 专用配置含旧桥接注册。请恢复隔离配置后再安装。'
+        throw 'MWEAI 专用配置含旧桥接注册。请恢复隔离配置后再安装。'
     }
     if(-not [Environment]::Is64BitOperatingSystem){throw '本安装包需要64位Windows。'}
     Verify-Payload
@@ -181,17 +187,21 @@ function Invoke-Install {
         [IO.File]::WriteAllText($ConfigPath,$new,$old.Encoding)
         $state=[ordered]@{Version=$version;Directory=$versionDirectory;Config=$ConfigPath;CodexPath=$CodexPath;Data=$data;PreviousVersion=if($prior -and $prior.Version -ne $version){$prior.Version}elseif($prior){$prior.PreviousVersion}else{''};PreviousDirectory=if($prior -and $prior.Version -ne $version){$prior.Directory}elseif($prior){$prior.PreviousDirectory}else{''};Installed=(Get-Date -Format o);Backup=$backup}
         Write-Json $activePath $state
-        foreach($file in @('Install-BWTL.ps1','Install-Support.ps1','Manage.cmd','BWTL-Manage.exe','BWTL-Uninstall.exe')){Copy-Item -LiteralPath (Join-Path $PackageRoot ('setup\'+$file)) -Destination (Join-Path $InstallRoot $file) -Force}
+        foreach($file in @('Install-BWTL.ps1','Install-Support.ps1','Manage.cmd','MWEAI-Manage.exe','MWEAI-Uninstall.exe')){Copy-Item -LiteralPath (Join-Path $PackageRoot ('setup\'+$file)) -Destination (Join-Path $InstallRoot $file) -Force}
         foreach($file in @('Start-BWTL.ps1','Enable-BWTLIsolation.ps1')){Copy-Item -LiteralPath (Join-Path $PackageRoot ('scripts\'+$file)) -Destination (Join-Path $InstallRoot $file) -Force}
+        Copy-Item -LiteralPath (Join-Path $PackageRoot 'scripts\Start-BWTL.ps1') -Destination (Join-Path $InstallRoot 'Start-MWEAI.ps1') -Force
         if(-not $NoShortcuts){
-            $menu=Join-Path ([Environment]::GetFolderPath('Programs')) '霸威天龙';New-Item -ItemType Directory -Force -Path $menu|Out-Null;$shell=New-Object -ComObject WScript.Shell
-            foreach($item in @(@('安装管理与升级',''),@('卸载霸威天龙','-Uninstall'),@('回退上一版本','-Rollback'),@('导出安装诊断','-Diagnose'))){$shortcut=$shell.CreateShortcut((Join-Path $menu ($item[0]+'.lnk')));$shortcut.TargetPath=Join-Path $InstallRoot 'BWTL-Manage.exe';$shortcut.Arguments=$item[1];$shortcut.WindowStyle=7;$shortcut.Save()}
-            $launcher=Join-Path $InstallRoot 'Start-BWTL.ps1'
-            $shortcut=$shell.CreateShortcut((Join-Path $menu 'Creo（BWTL）.lnk'))
+            $menu=Join-Path ([Environment]::GetFolderPath('Programs')) 'MWEAI';New-Item -ItemType Directory -Force -Path $menu|Out-Null;$shell=New-Object -ComObject WScript.Shell
+            foreach($item in @(@('安装管理与升级',''),@('卸载MWEAI','-Uninstall'),@('回退上一版本','-Rollback'),@('导出安装诊断','-Diagnose'))){$shortcut=$shell.CreateShortcut((Join-Path $menu ($item[0]+'.lnk')));$shortcut.TargetPath=Join-Path $InstallRoot 'MWEAI-Manage.exe';$shortcut.Arguments=$item[1];$shortcut.WindowStyle=7;$shortcut.Save()}
+            $launcher=Join-Path $InstallRoot 'Start-MWEAI.ps1'
+            $shortcut=$shell.CreateShortcut((Join-Path $menu 'Creo（MWEAI）.lnk'))
             $shortcut.TargetPath=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
             $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "'+$launcher+'" -InstallRoot "'+$InstallRoot+'" -NextAvailable'
             $shortcut.IconLocation=$isolation.CreoExecutable+',0';$shortcut.Save()
+            [Environment]::SetEnvironmentVariable('MWEAI_INSTALL_ROOT',$InstallRoot,'User')
             [Environment]::SetEnvironmentVariable('BWTL_INSTALL_ROOT',$InstallRoot,'User')
+            Remove-OwnedShortcuts '霸威天龙'
+            Remove-OwnedShortcuts 'BWTL'
         }
         return $state
     }catch{
@@ -217,18 +227,20 @@ function Remove-ManagedPath($Path){
     if(Test-Path -LiteralPath $checked){Remove-Item -LiteralPath $checked -Recurse -Force}
 }
 function Remove-OwnedShortcuts {
+    param([string]$MenuName='MWEAI')
     if($NoShortcuts){return}
-    $menu=Join-Path ([Environment]::GetFolderPath('Programs')) '霸威天龙';if(-not(Test-Path -LiteralPath $menu)){return}
+    $menu=Join-Path ([Environment]::GetFolderPath('Programs')) $MenuName
+    if(-not(Test-Path -LiteralPath $menu)){return}
     $shell=New-Object -ComObject WScript.Shell
-    foreach($name in @('安装管理与升级','卸载（保留聊天）','卸载霸威天龙','回退上一版本','导出安装诊断','Creo（BWTL）')){
-        $path=Join-Path $menu ($name+'.lnk');if(Test-Path -LiteralPath $path){$link=$shell.CreateShortcut($path);if($link.TargetPath.StartsWith($InstallRoot.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase) -or $link.Arguments.Contains('"'+(Join-Path $InstallRoot 'Install-BWTL.ps1')+'"') -or $link.Arguments.Contains('"'+(Join-Path $InstallRoot 'Start-BWTL.ps1')+'"')){Remove-Item -LiteralPath $path -Force}}
+    foreach($name in @('安装管理与升级','卸载（保留聊天）','卸载MWEAI','回退上一版本','导出安装诊断','Creo（MWEAI）','卸载霸威天龙','Creo（BWTL）')){
+        $path=Join-Path $menu ($name+'.lnk');if(Test-Path -LiteralPath $path){$link=$shell.CreateShortcut($path);if($link.TargetPath.StartsWith($InstallRoot.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase) -or $link.Arguments.Contains('"'+(Join-Path $InstallRoot 'Install-BWTL.ps1')+'"') -or $link.Arguments.Contains('"'+(Join-Path $InstallRoot 'Start-BWTL.ps1')+'"') -or $link.Arguments.Contains('"'+(Join-Path $InstallRoot 'Start-MWEAI.ps1')+'"')){Remove-Item -LiteralPath $path -Force}}
     }
     if(@(Get-ChildItem -LiteralPath $menu -Force).Count -eq 0){Remove-Item -LiteralPath $menu}
 }
 function New-UninstallDialog {
     Add-Type -AssemblyName System.Windows.Forms;Add-Type -AssemblyName System.Drawing
     [Windows.Forms.Application]::EnableVisualStyles()
-    $dialog=New-Object Windows.Forms.Form;$dialog.Text='霸威天龙 · 一键卸载';$dialog.Size=New-Object Drawing.Size(660,355);$dialog.StartPosition='CenterScreen';$dialog.Font=New-Object Drawing.Font('Microsoft YaHei UI',10);$dialog.FormBorderStyle='FixedDialog';$dialog.MaximizeBox=$false
+    $dialog=New-Object Windows.Forms.Form;$dialog.Text='MWEAI · 一键卸载';$dialog.Size=New-Object Drawing.Size(660,355);$dialog.StartPosition='CenterScreen';$dialog.Font=New-Object Drawing.Font('Microsoft YaHei UI',10);$dialog.FormBorderStyle='FixedDialog';$dialog.MaximizeBox=$false
     $label=New-Object Windows.Forms.Label;$label.Text="卸载将移除本插件的 Creo 启动注册。请选择需要清理的内容：`n安装目录：$InstallRoot";$label.SetBounds(20,18,610,65);$dialog.Controls.Add($label)
     $program=New-Object Windows.Forms.CheckBox;$program.Name='DeleteProgramFiles';$program.Text='删除插件程序文件和历史版本';$program.Checked=$true;$program.SetBounds(20,90,600,28);$dialog.Controls.Add($program)
     $data=New-Object Windows.Forms.CheckBox;$data.Name='DeleteData';$data.Text='删除聊天记录、记忆、数据备份和内置历史副本';$data.Checked=$false;$data.SetBounds(20,132,610,28);$dialog.Controls.Add($data)
@@ -262,32 +274,32 @@ function Invoke-Manage {
     foreach($target in $targets){Remove-ManagedPath $target}
     if($DeleteProgramFiles){
         Remove-OwnedShortcuts
-        foreach($name in @('protk.dat','Manage.cmd','BWTL-Manage.exe')){Remove-ManagedPath (Join-Path $validatedRoot $name)}
+        foreach($name in @('protk.dat','Manage.cmd','BWTL-Manage.exe','MWEAI-Manage.exe','Start-MWEAI.ps1')){Remove-ManagedPath (Join-Path $validatedRoot $name)}
         # Keep the small cleanup entry and receipt while data remains, so the
         # user can subsequently choose to delete it without reinstalling.
-        if($DeleteData){foreach($name in @('backups','BWTL-Uninstall.exe','Install-BWTL.ps1','Install-Support.ps1','active.json','diagnostics')){Remove-ManagedPath (Join-Path $validatedRoot $name)};if(@(Get-ChildItem -LiteralPath $validatedRoot -Force).Count -eq 0){Remove-Item -LiteralPath $validatedRoot}}
+        if($DeleteData){foreach($name in @('backups','MWEAI-Uninstall.exe','BWTL-Uninstall.exe','Install-BWTL.ps1','Install-Support.ps1','active.json','diagnostics')){Remove-ManagedPath (Join-Path $validatedRoot $name)};if(@(Get-ChildItem -LiteralPath $validatedRoot -Force).Count -eq 0){Remove-Item -LiteralPath $validatedRoot}}
     }
     $programText=if($DeleteProgramFiles){'程序和历史版本已删除。'}else{'程序文件已保留。'};$dataText=if($DeleteData){'聊天、记忆、备份数据及内置历史副本已删除。'}else{'聊天、记忆及数据备份已保留。'}
     return ('卸载完成：已移除Creo启动注册。'+$programText+$dataText+'下载的安装包和其他软件未删除。')
 }
-if($Diagnose){$report=Export-BwtlDiagnostics $InstallRoot;if($Silent){$report}else{Add-Type -AssemblyName System.Windows.Forms;[Windows.Forms.MessageBox]::Show(('诊断报告已保存，请把该文件发给维护人员：'+[Environment]::NewLine+$report),'霸威天龙诊断')|Out-Null};return}
+if($Diagnose){$report=Export-BwtlDiagnostics $InstallRoot;if($Silent){$report}else{Add-Type -AssemblyName System.Windows.Forms;[Windows.Forms.MessageBox]::Show(('诊断报告已保存，请把该文件发给维护人员：'+[Environment]::NewLine+$report),'MWEAI诊断')|Out-Null};return}
 if($Uninstall -or $Rollback){
     if($Silent -or $PlanOnly){Invoke-Manage;return}
     Add-Type -AssemblyName System.Windows.Forms
     if($Uninstall){$dialog=New-UninstallDialog;try{if($dialog.ShowDialog() -ne 'OK'){return};$DeleteProgramFiles=$dialog.Controls['DeleteProgramFiles'].Checked;$DeleteData=$dialog.Controls['DeleteData'].Checked}finally{$dialog.Dispose()}}
-    try{$result=Invoke-Manage;[Windows.Forms.MessageBox]::Show($result,'霸威天龙')|Out-Null}catch{[Windows.Forms.MessageBox]::Show(('卸载/回退未完成：'+$_.Exception.Message),'霸威天龙')|Out-Null};return
+    try{$result=Invoke-Manage;[Windows.Forms.MessageBox]::Show($result,'MWEAI')|Out-Null}catch{[Windows.Forms.MessageBox]::Show(('卸载/回退未完成：'+$_.Exception.Message),'MWEAI')|Out-Null};return
 }
 if($Silent -or $PlanOnly){Invoke-Install;return}
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
-$form=New-Object Windows.Forms.Form;$form.Text='霸威天龙 · 安装与升级';$form.Size=New-Object Drawing.Size(690,535);$form.StartPosition='CenterScreen';$form.Font=New-Object Drawing.Font('Microsoft YaHei UI',10);$form.FormBorderStyle='FixedDialog';$form.MaximizeBox=$false
+$form=New-Object Windows.Forms.Form;$form.Text='MWEAI · 安装与升级';$form.Size=New-Object Drawing.Size(690,535);$form.StartPosition='CenterScreen';$form.Font=New-Object Drawing.Font('Microsoft YaHei UI',10);$form.FormBorderStyle='FixedDialog';$form.MaximizeBox=$false
 function Label($Text,$X,$Y,$W=600){$l=New-Object Windows.Forms.Label;$l.Text=$Text;$l.SetBounds($X,$Y,$W,30);$form.Controls.Add($l)}
-Label '霸威天龙：原生Creo助手 · 完整工具与聊天记忆' 20 18
+Label 'MWEAI：原生Creo助手 · 完整工具与聊天记忆' 20 18
 Label 'Creo 启动程序 parametric.exe（首次安装时使用）' 20 62
 $creoBox=New-Object Windows.Forms.TextBox;$creoBox.SetBounds(20,95,630,30);$creoBox.Text=$CreoExecutable;$form.Controls.Add($creoBox)
 Label '数据盘' 20 137 110
-Label 'BWTL 安装与数据目录' 140 137 390
+Label 'MWEAI 安装与数据目录' 140 137 390
 $driveBox=New-Object Windows.Forms.ComboBox
 $driveBox.AccessibleName='数据盘'
 $driveBox.DropDownStyle=[Windows.Forms.ComboBoxStyle]::DropDownList
@@ -295,7 +307,7 @@ $driveBox.SetBounds(20,168,104,30)
 foreach($drive in @(Get-BwtlDataDrives)){$driveBox.Items.Add($drive.Name)|Out-Null}
 $form.Controls.Add($driveBox)
 $rootBox=New-Object Windows.Forms.TextBox
-$rootBox.AccessibleName='BWTL 安装与数据目录'
+$rootBox.AccessibleName='MWEAI 安装与数据目录'
 $rootBox.Text=$InstallRoot
 $rootBox.SetBounds(140,168,420,30)
 $form.Controls.Add($rootBox)
@@ -312,13 +324,13 @@ $driveBox.SelectedIndex=$driveBox.Items.IndexOf([IO.Path]::GetPathRoot($InstallR
 $driveBox.Add_SelectionChangeCommitted({
     $drive=[string]$driveBox.SelectedItem
     if([IO.Path]::GetPathRoot($initialRoot) -ieq $drive){$rootBox.Text=$initialRoot}
-    elseif([IO.Path]::GetPathRoot($env:LOCALAPPDATA) -ieq $drive){$rootBox.Text=Join-Path $env:LOCALAPPDATA 'BWTL'}
-    else{$rootBox.Text=Join-Path $drive 'BWTL'}
+    elseif([IO.Path]::GetPathRoot($env:LOCALAPPDATA) -ieq $drive){$rootBox.Text=Join-Path $env:LOCALAPPDATA 'MWEAI'}
+    else{$rootBox.Text=Join-Path $drive 'MWEAI'}
 })
 $rootBrowse.Add_Click({
     $browser=New-Object Windows.Forms.FolderBrowserDialog
     try{
-        $browser.Description='选择将存放 BWTL 程序、数据和备份的文件夹'
+        $browser.Description='选择将存放 MWEAI 程序、数据和备份的文件夹'
         if(Test-Path -LiteralPath $rootBox.Text -PathType Container){$browser.SelectedPath=$rootBox.Text}
         elseif($driveBox.SelectedItem){$browser.SelectedPath=[string]$driveBox.SelectedItem}
         if($browser.ShowDialog($form) -eq [Windows.Forms.DialogResult]::OK){$rootBox.Text=$browser.SelectedPath}
@@ -330,12 +342,12 @@ Label '聊天、记忆、缓存、日志和备份使用所选盘。升级请选�
 $status=New-Object Windows.Forms.Label;$status.SetBounds(20,435,630,50);$form.Controls.Add($status)
 $install=New-Object Windows.Forms.Button;$install.Text='一键安装 / 升级';$install.SetBounds(490,375,160,40);$form.Controls.Add($install)
 $uninstallButton=New-Object Windows.Forms.Button;$uninstallButton.Text='卸载 / 数据清理';$uninstallButton.SetBounds(20,375,150,40);$form.Controls.Add($uninstallButton)
-$uninstallButton.Add_Click({try{Start-BwtlManagement '-Uninstall' $rootBox.Text}catch{[Windows.Forms.MessageBox]::Show($_.Exception.Message,'霸威天龙')|Out-Null}})
+$uninstallButton.Add_Click({try{Start-BwtlManagement '-Uninstall' $rootBox.Text}catch{[Windows.Forms.MessageBox]::Show($_.Exception.Message,'MWEAI')|Out-Null}})
 $diagnoseButton=New-Object Windows.Forms.Button;$diagnoseButton.Text='导出诊断';$diagnoseButton.SetBounds(180,375,130,40);$form.Controls.Add($diagnoseButton)
-$diagnoseButton.Add_Click({try{$report=Export-BwtlDiagnostics $rootBox.Text;[Windows.Forms.MessageBox]::Show(('报告已保存：'+[Environment]::NewLine+$report),'霸威天龙')|Out-Null}catch{[Windows.Forms.MessageBox]::Show($_.Exception.Message,'霸威天龙')|Out-Null}})
+$diagnoseButton.Add_Click({try{$report=Export-BwtlDiagnostics $rootBox.Text;[Windows.Forms.MessageBox]::Show(('报告已保存：'+[Environment]::NewLine+$report),'MWEAI')|Out-Null}catch{[Windows.Forms.MessageBox]::Show($_.Exception.Message,'MWEAI')|Out-Null}})
 $rollbackButton=New-Object Windows.Forms.Button;$rollbackButton.Text='回退上一版';$rollbackButton.SetBounds(320,375,140,40);$form.Controls.Add($rollbackButton)
-$rollbackButton.Add_Click({try{Start-BwtlManagement '-Rollback' $rootBox.Text}catch{[Windows.Forms.MessageBox]::Show($_.Exception.Message,'霸威天龙')|Out-Null}})
+$rollbackButton.Add_Click({try{Start-BwtlManagement '-Rollback' $rootBox.Text}catch{[Windows.Forms.MessageBox]::Show($_.Exception.Message,'MWEAI')|Out-Null}})
 $install.Add_Click({
-    $install.Enabled=$false;try{if($driveBox.SelectedIndex -lt 0){throw '请选择数据盘并填写该盘上的安装目录。'};$script:InstallRoot=$rootBox.Text;$script:CreoExecutable=$creoBox.Text;$script:CodexPath=$codexBox.Text;$status.Text='正在校验并安装…';$form.Refresh();$result=Invoke-Install;$status.Text='安装完成：'+$result.Version;[Windows.Forms.MessageBox]::Show("从开始菜单打开「Creo（BWTL）」，然后点击 Creo 顶部的 BWTL。AI 使用本机已登录的 Codex。",'BWTL')|Out-Null}catch{$status.Text='安装未完成';[Windows.Forms.MessageBox]::Show($_.Exception.Message,'BWTL')|Out-Null}finally{$install.Enabled=$true}
+    $install.Enabled=$false;try{if($driveBox.SelectedIndex -lt 0){throw '请选择数据盘并填写该盘上的安装目录。'};$script:InstallRoot=$rootBox.Text;$script:CreoExecutable=$creoBox.Text;$script:CodexPath=$codexBox.Text;$status.Text='正在校验并安装…';$form.Refresh();$result=Invoke-Install;$status.Text='安装完成：'+$result.Version;[Windows.Forms.MessageBox]::Show("从开始菜单打开「Creo（MWEAI）」，然后点击 Creo 顶部的 MWEAI。AI 使用本机已登录的 Codex。",'MWEAI')|Out-Null}catch{$status.Text='安装未完成';[Windows.Forms.MessageBox]::Show($_.Exception.Message,'MWEAI')|Out-Null}finally{$install.Enabled=$true}
 })
 [void]$form.ShowDialog()

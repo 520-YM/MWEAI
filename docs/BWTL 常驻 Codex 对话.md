@@ -1,4 +1,4 @@
-# BWTL 常驻 Codex 对话
+# MWEAI 常驻 Codex 对话
 
 Creo 里的 BWTL 首次需要 AI 时启动自己的 Codex App Server，会话期间复用同一个服务和对话。登录由本机 Codex 管理。每个 Creo 实例使用各自 E 盘 BWTL 数据目录，关闭 Creo 时释放服务。重开 Creo 后，服务建立新的空白聊天会话。每个进程的聊天和附件分别保存在 E 盘。长期记忆和学习方法按保存的规则继续使用。输入「新对话」可主动开启新会话。
 

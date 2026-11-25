@@ -16,11 +16,11 @@ static const wchar_t *modeling_rule_flow(unsigned mode){
 
 static const wchar_t *modeling_rule_status(int status){
     switch(status){
-    case MODELING_RULE_CHANGED:return L"另一个 BWTL 窗口刚更新了规则。请查看当前规则，再发送本次修改。";
-    case MODELING_RULE_BUSY:return L"另一个 BWTL 窗口正在写入规则，稍后可以重发。";
+    case MODELING_RULE_CHANGED:return L"另一个 MWEAI 窗口刚更新了规则。请查看当前规则，再发送本次修改。";
+    case MODELING_RULE_BUSY:return L"另一个 MWEAI 窗口正在写入规则，稍后可以重发。";
     case MODELING_RULE_INVALID:return L"建模规则文件格式无效。请核对数据目录中的建模规则文件。";
     case MODELING_RULE_NO_PREVIOUS:return L"尚无上一版建模规则可恢复。";
-    default:return L"无法读写建模规则。请核对本机 BWTL 数据盘和目录权限。";
+    default:return L"无法读写建模规则。请核对本机 MWEAI 数据盘和目录权限。";
     }
 }
 
@@ -86,6 +86,8 @@ static int modeling_rule_company_sentence(const wchar_t *line){
 
 static int modeling_rule_reference_write(const wchar_t *text){
     static const wchar_t *const phrases[]={
+        L"把这条写入MWEAI",L"把这个写入MWEAI",L"把这条规则写入MWEAI",L"把这条写入到MWEAI",
+        L"把这条规则写入到MWEAI",L"这个写入到MWEAI",L"把这条保存到MWEAI",L"把这条登记到MWEAI",
         L"把这条写入BWTL",L"把这个写入BWTL",L"把这条规则写入BWTL",L"把这条写入到BWTL",
         L"把这条规则写入到BWTL",L"这个写入到BWTL",L"把这条保存到BWTL",L"保存这条建模规则",
         L"把这条写入插件",L"保存这条规则",L"把这条登记到BWTL"
@@ -146,7 +148,7 @@ static int modeling_rule_chat(const wchar_t *text){
     if(action==RULE_CHAT_VIEW)modeling_rule_describe(reply,_countof(reply));
     else if(action==RULE_CHAT_PROPOSE){
         modeling_rule_proposal=change;
-        wcscpy_s(reply,_countof(reply),L"已识别你的公司建模流程。发送「把这条写入 BWTL」即可长期保存。");
+        wcscpy_s(reply,_countof(reply),L"已识别你的公司建模流程。发送「把这条写入 MWEAI」即可长期保存。");
     }else if(action==RULE_CHAT_SAVE&&!change.mode&&!change.revision[0]){
         wcscpy_s(reply,_countof(reply),
             L"请写明要更新哪项，例如「写入建模规则：默认流程 公司」或「写入建模规则：默认版本 V07」。");
@@ -183,6 +185,6 @@ static void modeling_rule_prompt_write(FILE *prompt){
     if(modeling_rule_read(&state)!=MODELING_RULE_OK)return;
     fwprintf(prompt,L"\n<BWTL生效建模规则>\n规则第 %u 版。空白新零件默认：%ls。默认图号版本 %ls。"
         L"明确说单独创建按独立件处理；明确指定在当前装配里建子件时绑定该装配。"
-        L"写入、修改和恢复规则由 BWTL 本机聊天命令执行，禁止在对话中假称保存成功。\n</BWTL生效建模规则>\n",
+        L"写入、修改和恢复规则由 MWEAI 本机聊天命令执行，禁止在对话中假称保存成功。\n</BWTL生效建模规则>\n",
         state.generation,modeling_rule_flow(state.current.mode),state.current.revision);
 }

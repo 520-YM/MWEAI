@@ -74,7 +74,7 @@ static void run_local_dispatch(char *dialog, char *component, ProAppData data) {
         return;
     }
     if(!wcscmp(value,L"应用已验升级")||!wcscmp(value,L"功能开发")||!wcscmp(value,L"功能开发（升级插件）")){
-        append(L"BWTL 更新在 Codex 中处理。");native_prompt_set(L"");free(value);return;
+        append(L"MWEAI 更新在 Codex 中处理。");native_prompt_set(L"");free(value);return;
     }
     if(return_assembly_chat(value)||component_open_chat(value)){free(value);return;}
     if(fastener_chat(value)){free(value);return;}

@@ -1,6 +1,6 @@
 #ifndef BWTL_MACHINING_PROMPT_H
 #define BWTL_MACHINING_PROMPT_H
-static const wchar_t machining_prompt[]=L"\nBWTL 普通零件加工与抽壳协议：\n"
+static const wchar_t machining_prompt[]=L"\nMWEAI 普通零件加工与抽壳协议：\n"
 L"仅限本次活动的独立普通单实体零件，信息完整后直接执行一条CREO_OP，不自动保存。所有新特征名须唯一。收到实际原生回执后再报告结果。\n"
 L"CREO_OP MACHINING_INFO 模型名：读取实际平面点、几何法向、边端点/中点/长度，坐标均为模型XYZ毫米。ID只在本次快照有效，旧历史中的ID不能复用。平面点不是面中心，不能据此猜孔中心。位置或边指向不唯一必须询问。\n"
 L"CREO_OP HOLE 模型名 新孔名 SURFACE:实际实体平面ID 平面参照1 有符号距离1 平面参照2 有符号距离2 直径 THROUGH 0；盲孔用 BLIND 深度。示意格式：HOLE PRT1 H1 SURFACE:71 PLANE:实际X基准 20 PLANE:实际Y基准 30 6 BLIND 5。这是独立PRO_FEAT_HOLE直孔，不是圆形草绘切除。主平面必须是实际实体表面，孔从此面向实体内部钻入，两个定位参照必须与主平面及彼此正交。距离为沿对应参考平面几何法向的有符号偏移，不能把全局XY或距边尺寸直接当协议偏移；必须用本次API平面数据换算。零偏移表示与参考平面对齐。支持无钻尖的平底盲孔，深度必须明确；穿透或与已有空腔相交会拒绝并恢复。\n"

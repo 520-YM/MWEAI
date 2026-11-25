@@ -101,8 +101,8 @@ int main(void){
  wchar_t text[12000]=L"",line[64],input[64];int i,first,old;DWORD start;MSG message;
  assert(SetEnvironmentVariableW(L"BWTL_INSTANCE_NUMBER",L"2"));
  native_ui_ready=CreateEventW(NULL,TRUE,FALSE,NULL); native_ui_thread=CreateThread(NULL,0,native_ui_thread_main,NULL,0,NULL); assert(native_ui_thread); assert(WaitForSingleObject(native_ui_ready,5000)==WAIT_OBJECT_0); CloseHandle(native_ui_ready);native_ui_ready=NULL; assert(native_ui_thread_id!=GetCurrentThreadId()); assert(IsWindowUnicode(native_prompt));assert(!IsWindowVisible(native_window));
- GetWindowTextW(native_window,input,64);assert(!wcscmp(input,L"BWTL · 会话 2"));
- GetWindowTextW(native_title,input,64);assert(!wcscmp(input,L"BWTL · 会话 2"));
+ GetWindowTextW(native_window,input,64);assert(!wcscmp(input,L"MWEAI · 会话 2"));
+ GetWindowTextW(native_title,input,64);assert(!wcscmp(input,L"MWEAI · 会话 2"));
  puts("The BWTL title and header identify the session: PASS");
  check_request_timer();
  for(i=0;i<250;i++){swprintf_s(line,64,L"Line %03d: test message\n",i);wcscat_s(text,12000,line);}

@@ -4,6 +4,7 @@
   "Created": "2026-11-04",
   "Policy": "No automatic baseline refresh. Legacy modifications require explicit review and applicable regression, including Creo native tests for behavioral changes.",
   "ReviewedChanges": [
+    "MWEAI rebrand: UI labels, native prompts and chat title regression expectations; historical storage and command identifiers remain compatible.",
     "0.23.0-local.imitation.47: native_chat_ui.h adds a new BWTL-only menu item and appends its action ID, preserving existing actions.",
     "0.23.0-local.assemblylearning.60: adds one imitation menu action and learned assembly context, with the existing native model dispatch retained.",
     "0.23.0-preview.5: BWTL-only method-library status, verified workflow menu and chat intake. Existing menu action numbers and Creo command contracts remain compatible.",
@@ -83,7 +84,7 @@
     },
     {
       "Path": "src/native_chat_ui.h",
-      "SHA256": "19f37e9de0d436370e2526705a8f33839d227b37f9e3df7c71452817b9f81800"
+      "SHA256": "1fe21cb138780e0aed10c426d1e0a757f17217b82afb12ad89650b8a8e359670"
     },
     {
       "Path": "src/native_model.h",
@@ -139,7 +140,7 @@
     },
     {
       "Path": "src/功能/assistant/ai_send.inc",
-      "SHA256": "fcd2c5379cfa48603b6f35f01498e20d9b8acc435a12d9aabdd2f4c5e69760cb"
+      "SHA256": "9b628a6dcccbecb9ddc9d47ee704888fa6f1478d1d12acb2dcda160f29857f02"
     },
     {
       "Path": "src/功能/assistant/append_card.inc",
@@ -207,7 +208,7 @@
     },
     {
       "Path": "src/功能/assistant/run_local.inc",
-      "SHA256": "c394297b8d00135b4221f26fee19b95934cbc03169fa1433224ce803836cb991"
+      "SHA256": "d695c886f45d96ff676431653f06ad710ebeeefd6766e66bd40792e970cf75fb"
     },
     {
       "Path": "src/功能/assistant/save_pending_plan.inc",
@@ -231,7 +232,7 @@
     },
     {
       "Path": "src/功能/assistant/user_initialize.inc",
-      "SHA256": "ca8e2112f3e13c3a60881c4cb2f419a2c4dec1e2bd0fdf21f60fc4fa5f57367e"
+      "SHA256": "413a9d6d3e026c9607291ad272f4dc391fe23bc29d30c00268747281c7172ae4"
     },
     {
       "Path": "src/功能/assistant/user_terminate.inc",
@@ -575,7 +576,7 @@
     },
     {
       "Path": "src/功能/native_chat_ui/native_ui_create.inc",
-      "SHA256": "b52f87def835ca7bb169f95c089cbb4d040314bf7b223a9839d658bc6412d51a"
+      "SHA256": "b79de8a8de9c0cef20164df80da9d4aab7706ffd8f1050ba144b3c4feed12d8a"
     },
     {
       "Path": "src/功能/native_chat_ui/native_ui_history.inc",
@@ -927,7 +928,7 @@
     },
     {
       "Path": "tests/test_native_chat.c",
-      "SHA256": "fd1abfe571fa3ef35f1fee0d61d590e021edb96ec5e47415af0f030cfd6b051c"
+      "SHA256": "a7af73ec8fc7ee06dea68a4d51427c3a399d5d38aeb1513261ea016ad3af5700"
     },
     {
       "Path": "tests/test_part_command.c",

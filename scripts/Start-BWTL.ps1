@@ -1,16 +1,21 @@
 ﻿[CmdletBinding()]
 param([string]$InstallRoot,[switch]$PlanOnly,[switch]$NextAvailable)
 $ErrorActionPreference='Stop'
-$managedRoot=[Environment]::GetEnvironmentVariable('BWTL_INSTALL_ROOT','User')
+$managedRoot=[Environment]::GetEnvironmentVariable('MWEAI_INSTALL_ROOT','User')
+if(-not $managedRoot){$managedRoot=[Environment]::GetEnvironmentVariable('BWTL_INSTALL_ROOT','User')}
+if(-not $managedRoot){
+    $legacyRoot=Join-Path $env:LOCALAPPDATA 'BWTL'
+    if(Test-Path -LiteralPath (Join-Path $legacyRoot 'active.json') -PathType Leaf){$managedRoot=$legacyRoot}
+}
 if(!$InstallRoot){
     if(Test-Path -LiteralPath (Join-Path $PSScriptRoot 'active.json')){$InstallRoot=$PSScriptRoot}
     elseif($managedRoot){$InstallRoot=$managedRoot}
-    else{$InstallRoot=Join-Path $env:LOCALAPPDATA 'BWTL'}
+    else{$InstallRoot=Join-Path $env:LOCALAPPDATA 'MWEAI'}
 }
 $InstallRoot=[IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 $outputDrive=[IO.Path]::GetPathRoot($InstallRoot)
 if(-not ([IO.DriveInfo]::GetDrives() | Where-Object {$_.Name -ieq $outputDrive -and $_.DriveType -eq [IO.DriveType]::Fixed -and $_.IsReady})){
-    throw "BWTL 的数据盘 $outputDrive 当前不可用。"
+    throw "MWEAI 的数据盘 $outputDrive 当前不可用。"
 }
 # No argument means the normal desktop entry. Updates always pass an exact root.
 $auto=($NextAvailable -or -not $PSBoundParameters.ContainsKey('InstallRoot')) -and -not $PlanOnly
@@ -39,7 +44,7 @@ function Get-LaunchPid($root){
 function Assert-LocalPath($path){
     for($parent=$path;$parent;$parent=Split-Path -Parent $parent){
         if((Test-Path -LiteralPath $parent) -and ((Get-Item -LiteralPath $parent -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)){
-            throw "BWTL 会话路径含链接或联接点：$parent"
+            throw "MWEAI 会话路径含链接或联接点：$parent"
         }
     }
 }
@@ -81,7 +86,7 @@ $held=$false
 try{
     try{$held=$mutex.WaitOne([TimeSpan]::FromMinutes(3))}
     catch [Threading.AbandonedMutexException]{$held=$true}
-    if(-not $held){throw '等待 BWTL 启动分配超时。'}
+    if(-not $held){throw '等待 MWEAI 启动分配超时。'}
     $allLoaded=@(Get-LoadedBwtl)
     for($number=1;;$number++){
         $root=$InstallRoot
@@ -95,21 +100,21 @@ try{
     if(Test-Path -LiteralPath $instance){$number=(Read-Json $instance).Number}
     $state=Read-Json (Join-Path $root 'active.json')
     $isolation=Read-Json (Join-Path $root 'isolation.json')
-    if($state.Config -ine $isolation.Config){throw 'BWTL 启动配置与隔离配置不一致，请修复安装。'}
+    if($state.Config -ine $isolation.Config){throw 'MWEAI 启动配置与隔离配置不一致，请修复安装。'}
     if($outputDrive){
         foreach($path in @($root,$state.Directory,$state.Data,$state.Config,$isolation.ProfileRoot,
                             $isolation.Home,$isolation.Alternate,$isolation.Workspace,$isolation.Cache,$isolation.Temp,$isolation.Logs)){
-            if(!$path -or [IO.Path]::GetPathRoot($path) -ine $outputDrive){throw "BWTL 数据路径必须位于 ${outputDrive}：$path"}
+            if(!$path -or [IO.Path]::GetPathRoot($path) -ine $outputDrive){throw "MWEAI 数据路径必须位于 ${outputDrive}：$path"}
             Assert-LocalPath $path
         }
     }
     foreach($path in @($isolation.Home,$isolation.Alternate,$isolation.Workspace)){
-        if(-not(Test-Path -LiteralPath $path -PathType Container)){throw 'BWTL 隔离目录缺失。'}
+        if(-not(Test-Path -LiteralPath $path -PathType Container)){throw 'MWEAI 隔离目录缺失。'}
     }
     $config=[IO.File]::ReadAllText($state.Config)
-    if($config -match '(?i)creo_safe_resident|CreoSafeResident'){throw 'BWTL 专用配置含旧桥接注册，已拒绝启动。'}
+    if($config -match '(?i)creo_safe_resident|CreoSafeResident'){throw 'MWEAI 专用配置含旧桥接注册，已拒绝启动。'}
     $registration=Join-Path $root 'protk.dat'
-    if($config.IndexOf($registration,[StringComparison]::OrdinalIgnoreCase) -lt 0){throw 'BWTL 专用注册缺失。'}
+    if($config.IndexOf($registration,[StringComparison]::OrdinalIgnoreCase) -lt 0){throw 'MWEAI 专用注册缺失。'}
     foreach($directory in @($isolation.Alternate,$isolation.Workspace)){
         foreach($name in @('config.pro','config.sup','protk.dat','creotk.dat','prodev.dat')){
             if(Test-Path -LiteralPath (Join-Path $directory $name)){throw ('隔离启动目录出现额外配置，请检查：'+$name)}
@@ -121,7 +126,7 @@ try{
         return [pscustomobject]@{Executable=$exe;Instance=$number;Home=$isolation.Home;Workspace=$isolation.Workspace
             Cache=$isolation.Cache;Config=$state.Config;Data=$state.Data;DataDrive=$outputDrive;Isolated=$true;ExistingBwtlPIDs=@($loaded | ForEach-Object Id);PendingLauncherPID=$pending}
     }
-    if($loaded.Count -or $pending){throw "BWTL 会话 $number 已在运行或正在启动。"}
+    if($loaded.Count -or $pending){throw "MWEAI 会话 $number 已在运行或正在启动。"}
     $start=[Diagnostics.ProcessStartInfo]::new($exe)
     $start.UseShellExecute=$false
     $start.WorkingDirectory=$isolation.Workspace

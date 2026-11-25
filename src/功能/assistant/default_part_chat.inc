@@ -437,7 +437,7 @@ static int default_part_chat(const wchar_t *text){
     }
     ModelingRuleState rules;
     if(modeling_rule_read(&rules)!=MODELING_RULE_OK){
-        smart_reply(L"BWTL 无法读取建模规则，请先在「标准文件 → 建模规则」核对规则文件。");
+        smart_reply(L"MWEAI 无法读取建模规则，请先在「标准文件 → 建模规则」核对规则文件。");
         return 1;
     }
     int scope=request.scope;

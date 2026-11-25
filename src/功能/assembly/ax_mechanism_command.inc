@@ -228,7 +228,7 @@ static ProError ax_joint_command(ProMdl assembly,const PartCommand *cmd,int kind
         JC(ax_joint_update(assembly,&target,&joint,cmd,kind,mm,out));
     }
     const wchar_t *names[]={L"销轴连接",L"滑块连接",L"圆柱连接",L"开门角度限位",L"滑动行程限位",L"预设机构位置"};
-    part_text_add(out,L"已完成%ls，BWTL 机构实例 ID:%d。已读回连接记录并核对 Creo 实际姿态。\n",
+    part_text_add(out,L"已完成%ls，MWEAI 机构实例 ID:%d。已读回连接记录并核对 Creo 实际姿态。\n",
         names[kind-AX_JOINT_PIN],target.feature.id);
     for(int i=0;i<2;i++){
         const AxJointAxis *axis=&joint.axes[i];
@@ -238,7 +238,7 @@ static ProError ax_joint_command(ProMdl assembly,const PartCommand *cmd,int kind
         if(axis->bounded)part_text_add(out,L"，限位 %.8g 至 %.8g %ls",axis->low,axis->high,unit);
         part_text_add(out,L"。\n");
     }
-    part_text_add(out,L"位置由 BWTL 控制，装配未保存。\n");
+    part_text_add(out,L"位置由 MWEAI 控制，装配未保存。\n");
 done:
     if(error&&kind<=AX_JOINT_CYLINDER){
         ax_discard_occurrence(assembly,&target.feature,out);

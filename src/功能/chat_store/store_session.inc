@@ -72,7 +72,7 @@ static int store_session_begin(void){
     if(!store_archive_directory(archive))return 0;
     wcscpy_s(store_archive_root,MAX_PATH,archive);
     if(!store_archive_legacy()||!store_archive_directory(session))return 0;
-    if(swprintf_s(header,_countof(header),L"# BWTL 聊天记录\r\n\r\nCreo 进程 %lu\r\n\r\n开始时间 %04u-%02u-%02u %02u:%02u:%02u\r\n\r\n数据目录 %ls\r\n",
+    if(swprintf_s(header,_countof(header),L"# MWEAI 聊天记录\r\n\r\nCreo 进程 %lu\r\n\r\n开始时间 %04u-%02u-%02u %02u:%02u:%02u\r\n\r\n数据目录 %ls\r\n",
         GetCurrentProcessId(),started.wYear,started.wMonth,started.wDay,started.wHour,started.wMinute,started.wSecond,store_root)<0||
        swprintf_s(path,MAX_PATH,L"%ls\\chat-history.md",session)<0||!store_archive_text(path,header))return 0;
     wcscpy_s(store_session_root,MAX_PATH,session);

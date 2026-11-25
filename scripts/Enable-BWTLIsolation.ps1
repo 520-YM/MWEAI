@@ -1,14 +1,19 @@
 ﻿[CmdletBinding()]
 param([string]$InstallRoot,[string]$ProfileRoot,[string]$StandardsConfig='C:\PTC\Pro_Stds-C\00_config\config.pro',[string]$CreoExecutable='C:\Program Files\PTC\Creo 10.0.0.0\Parametric\bin\parametric.exe',[switch]$PlanOnly)
 $ErrorActionPreference='Stop'
-$managedRoot=[Environment]::GetEnvironmentVariable('BWTL_INSTALL_ROOT','User')
-if(!$InstallRoot){$InstallRoot=if($managedRoot){$managedRoot}else{Join-Path $env:LOCALAPPDATA 'BWTL'}}
+$managedRoot=[Environment]::GetEnvironmentVariable('MWEAI_INSTALL_ROOT','User')
+if(-not $managedRoot){$managedRoot=[Environment]::GetEnvironmentVariable('BWTL_INSTALL_ROOT','User')}
+if(-not $managedRoot){
+    $legacyRoot=Join-Path $env:LOCALAPPDATA 'BWTL'
+    if(Test-Path -LiteralPath (Join-Path $legacyRoot 'active.json') -PathType Leaf){$managedRoot=$legacyRoot}
+}
+if(!$InstallRoot){$InstallRoot=if($managedRoot){$managedRoot}else{Join-Path $env:LOCALAPPDATA 'MWEAI'}}
 if(!$ProfileRoot){$ProfileRoot=$InstallRoot+'-Profile'}
 $InstallRoot=[IO.Path]::GetFullPath($InstallRoot);$ProfileRoot=[IO.Path]::GetFullPath($ProfileRoot)
 $drive=[IO.Path]::GetPathRoot($InstallRoot)
 if($drive -ine [IO.Path]::GetPathRoot($ProfileRoot) -or
    -not ([IO.DriveInfo]::GetDrives() | Where-Object {$_.Name -ieq $drive -and $_.DriveType -eq [IO.DriveType]::Fixed -and $_.IsReady})){
-    throw 'BWTL 安装目录和专用配置必须位于同一个可用的本地固定数据盘。'
+    throw 'MWEAI 安装目录和专用配置必须位于同一个可用的本地固定数据盘。'
 }
 $statePath=Join-Path $InstallRoot 'active.json';$state=Get-Content -LiteralPath $statePath -Raw -Encoding UTF8|ConvertFrom-Json
 $isolationPath=Join-Path $InstallRoot 'isolation.json';$newConfig=Join-Path $ProfileRoot 'home\config.pro'
@@ -17,13 +22,13 @@ if(Test-Path -LiteralPath $isolationPath){
     if($state.Config -ine $existing.Config -or $existing.ProfileRoot -ine $ProfileRoot){throw '已有隔离状态与本次目录不一致。'}
     return $existing
 }
-if(Test-Path -LiteralPath $ProfileRoot){throw '请选择尚未使用的BWTL专用配置目录。'}
+if(Test-Path -LiteralPath $ProfileRoot){throw '请选择尚未使用的MWEAI专用配置目录。'}
 $sharedPath=[IO.Path]::GetFullPath($state.Config);$original=[IO.File]::ReadAllText($sharedPath)
 $pattern='(?ms)^! BWTL BEGIN\r?\n.*?^! BWTL END(?:\r?\n)?'
 $blocks=[regex]::Matches($original,$pattern)
-if($blocks.Count -ne 1 -or $blocks[0].Value.IndexOf((Join-Path $InstallRoot 'protk.dat'),[StringComparison]::OrdinalIgnoreCase) -lt 0){throw '原配置未找到唯一的本安装BWTL注册块，未执行迁移。'}
+if($blocks.Count -ne 1 -or $blocks[0].Value.IndexOf((Join-Path $InstallRoot 'protk.dat'),[StringComparison]::OrdinalIgnoreCase) -lt 0){throw '原配置未找到唯一的本安装MWEAI注册块，未执行迁移。'}
 $without=[regex]::Replace($original,$pattern,'')
-if($without -cne $original.Remove($blocks[0].Index,$blocks[0].Length)){throw '配置差异超出BWTL注册块。'}
+if($without -cne $original.Remove($blocks[0].Index,$blocks[0].Length)){throw '配置差异超出MWEAI注册块。'}
 $settings=[IO.File]::ReadAllText($StandardsConfig)
 $settings=[regex]::Replace($settings,'(?ms)^! BWTL BEGIN\r?\n.*?^! BWTL END(?:\r?\n)?','')
 $settings=[regex]::Replace($settings,'(?im)^\s*(?:protkdat|toolkit_registry_file|prodevdat|creotkdat)\s+[^\r\n]*','')

@@ -44,7 +44,7 @@ static void smart_describe_failure(const PartCommand *cmd,const wchar_t *receipt
         cause=L"当前回执只定位到重新生成或检查特征的阶段";
     else if(wcsstr(receipt,L"regenerate sheetmetal feature")||wcsstr(receipt,L"verify healthy sheetmetal feature")||
             wcsstr(receipt,L"verify native sheetmetal type, parents, thickness and dimensions"))
-        cause=L"钣金特征未通过 BWTL 验收，现有记录只定位到检查阶段";
+        cause=L"钣金特征未通过 MWEAI 验收，现有记录只定位到检查阶段";
     else if(wcsstr(receipt,L"solve referenced sketch")||wcsstr(receipt,L"fd_section_solve("))
         cause=L"Creo 没能解出草绘的形状和约束";
     else if(wcsstr(receipt,L"create sketch geometry and dimensions")||wcsstr(receipt,L"test rejected sketch dimension input")||

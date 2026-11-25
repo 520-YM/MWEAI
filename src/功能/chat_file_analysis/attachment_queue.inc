@@ -83,7 +83,7 @@ static int native_attachment_import(const wchar_t *path,wchar_t *error,size_t ca
         CopyFileW(item.source,item.path,TRUE);
     CloseHandle(source);
     if(!valid){
-        wcscpy_s(error,cap,L"无法将附件存到 BWTL 会话目录，请检查 E 盘空间。");
+        wcscpy_s(error,cap,L"无法将附件存到 MWEAI 会话目录，请检查 E 盘空间。");
         return 0;
     }
     AcquireSRWLockExclusive(&native_image_lock);

@@ -30,7 +30,7 @@ static ProError am_execute(const PartCommand *cmd,ProMdl model,wchar_t *report,s
     const wchar_t *labels[]={L"",L"曲面入口孔",L"指定轴线斜孔",L"贯穿螺纹孔",L"非 ISO 标准螺纹孔",L"孔口点平",L"键槽",L"卡簧槽",L"变半径圆角",L"相切边链圆角",L"不等距／角度倒角"};
     if(advanced_machining_plan_valid(cmd->count,(wchar_t (*)[PART_TOKEN_MAX])cmd->arg)!=1)return PRO_TK_BAD_INPUTS;
     if(k==AM_INFO)return am_info(model,report,capacity);
-    if(am_recovery_uncertain){wcscpy_s(report,capacity,L"上次高级加工的恢复未能核实，请检查模型后重新启动此独立 BWTL 会话。");return PRO_TK_BAD_CONTEXT;}
+    if(am_recovery_uncertain){wcscpy_s(report,capacity,L"上次高级加工的恢复未能核实，请检查模型后重新启动此独立 MWEAI 会话。");return PRO_TK_BAD_CONTEXT;}
 #define AM(call,label) do{tx.stage=label;e=(call);trace(label,e);if(e)goto done;}while(0)
     AM(fd_begin(&tx,model,cmd->arg[2],type),"prepare advanced machining");
     AM(sd_body_count(model,&bodies),"read advanced machining body count");

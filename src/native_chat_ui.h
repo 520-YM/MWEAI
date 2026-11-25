@@ -65,7 +65,7 @@ enum {IMITATION_CURRENT=1,IMITATION_FILE,IMITATION_STRICT,IMITATION_DIAGNOSE,
 static void native_set_busy(int busy){if(native_window)SendMessageW(native_window,CHAT_BUSY,busy,0);}
 static void native_layout(void);
 static void native_attachment_changed(void){if(native_preview)native_layout();}
-static void native_attachment_error(const wchar_t *text){MessageBoxW(native_window,text,L"BWTL",MB_OK|MB_ICONWARNING);}
+static void native_attachment_error(const wchar_t *text){MessageBoxW(native_window,text,L"MWEAI",MB_OK|MB_ICONWARNING);}
 static void native_choose_attachments(void){
     OPENFILENAMEW dialog={0};
     wchar_t files[2048]=L"",path[MAX_PATH],error[256],first_error[256]=L"";

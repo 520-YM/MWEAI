@@ -59,7 +59,7 @@ static wchar_t *project_dialog_get_name(HWND parent){
     if(!name)return NULL;
     INT_PTR result=DialogBoxIndirectParamW(GetModuleHandleW(NULL),&layout.dialog,parent,project_dialog_proc,(LPARAM)name);
     if(result==IDOK)return name;
-    if(result==-1)MessageBoxW(parent,L"无法打开项目名称输入框。",L"BWTL",MB_OK|MB_ICONWARNING);
+    if(result==-1)MessageBoxW(parent,L"无法打开项目名称输入框。",L"MWEAI",MB_OK|MB_ICONWARNING);
     free(name);
     return NULL;
 }

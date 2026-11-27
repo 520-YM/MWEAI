@@ -100,13 +100,17 @@ static int ax_open_selector_valid(const wchar_t *selector){
     return !wcsncpy_s(name,_countof(name),selector,length)&&dv_safe_leaf(name);
 }
 
+static int ax_interference_review_command(const wchar_t *mode){
+    return !wcscmp(mode,L"REUSE")||!wcscmp(mode,L"SHOW")||!wcscmp(mode,L"CLEAR");
+}
+
 static int ax_csys_token(const wchar_t *token){return !wcsncmp(token,L"CSYS:",5)&&fd_name(token+5);}
 
 static int ax_delete_preview(const PartCommand *cmd){
     return !wcscmp(cmd->arg[0],L"ASM_DELETE_COMPONENT")&&cmd->count==5&&!wcscmp(cmd->arg[4],L"CHECK");
 }
 
-static int ax_read_diagnostic(int kind){return kind==AX_TREE||kind==AX_OPEN||kind==AX_REFS||kind==AX_PLACEMENT||kind==AX_Q_REGEN||kind==AX_Q_REPORT||aw_diagnostic(kind);}
+static int ax_read_diagnostic(int kind){return kind==AX_TREE||kind==AX_OPEN||kind==AX_INTERFERENCE||kind==AX_REFS||kind==AX_PLACEMENT||kind==AX_Q_REGEN||kind==AX_Q_REPORT||aw_diagnostic(kind);}
 static int ax_motion_inspection_request(const wchar_t *text){
     const wchar_t *terms[]={L"运动干涉",L"开启空间",L"抽出空间",L"工具操作空间",
         L"第287项",L"第288项",L"第289项",L"第290项",
@@ -390,6 +394,23 @@ static int assembly_plan_valid(int count,wchar_t args[][PART_TOKEN_MAX]){
         return count==5&&ax_path_parse(args[2],path)&&ax_path_parse(args[3],path)&&
             wcscmp(args[2],args[3])&&qa_number(args[4],0,1e6)?1:-1;
     case AX_INTERFERENCE:
+        if(count>=3&&!wcscmp(args[2],L"REPORT")){
+            const int next=count>3&&(!wcscmp(args[3],L"ALL")||!wcscmp(args[3],L"VISIBLE"))?4:3;
+            return count==next||(count==next+2&&!wcscmp(args[next],L"EXPORT")&&dv_safe_leaf(args[next+1]))?1:-1;
+        }
+        if(count>=3&&ax_interference_review_command(args[2])){
+            if(!wcscmp(args[2],L"CLEAR"))return count==3?1:-1;
+            int end=count;
+            if(count>=5&&!wcscmp(args[count-2],L"AT")){
+                if(!ax_path_parse(args[count-1],path))return -1;
+                end-=2;
+            }
+            if(!wcscmp(args[2],L"REUSE"))return end==3||
+                (end==4&&(!wcscmp(args[3],L"ALL")||!wcscmp(args[3],L"VISIBLE")))?1:-1;
+            int row;
+            return end==4&&(!wcscmp(args[3],L"ALL")||!wcscmp(args[3],L"NEXT")||
+                !wcscmp(args[3],L"PREV")||(part_integer(args[3],&row)&&row>0))?1:-1;
+        }
         if(count==3&&!wcscmp(args[2],L"ALL"))return 1;
         return count==4&&ax_path_parse(args[2],path)&&ax_path_parse(args[3],path)&&wcscmp(args[2],args[3])?1:-1;
     case AX_BOM:case AX_STEP:return count==3&&dv_safe_leaf(args[2])?1:-1;

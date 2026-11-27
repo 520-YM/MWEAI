@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param([string]$PackageRoot,[string]$InstallRoot,[string]$ConfigPath,[string]$CodexPath,[switch]$Silent,[switch]$PlanOnly,[switch]$Uninstall,[switch]$Rollback,[switch]$NoShortcuts,[switch]$DeleteProgramFiles,[switch]$DeleteData,[switch]$Diagnose,[switch]$PreserveData,[string]$CreoExecutable=(Join-Path $env:ProgramFiles 'PTC\Creo 10.0.0.0\Parametric\bin\parametric.exe'))
 $ErrorActionPreference='Stop'
 if(-not $PackageRoot){$PackageRoot=Split-Path -Parent $MyInvocation.MyCommand.Path}
@@ -97,7 +97,26 @@ function Add-Seed($Data,$Seed,$Version){
 function Set-Registration($VersionDirectory){
     $registration=Join-Path $InstallRoot 'protk.dat';$native=Native-Path $VersionDirectory;$dll=Join-Path $native 'bin\BWTL.dll';$resources=Join-Path $native 'resources'
     $displayName=if(Test-Path -LiteralPath (Join-Path $VersionDirectory 'setup\MWEAI-Manage.exe') -PathType Leaf){'MWEAI'}else{'BWTL'}
-    [IO.File]::WriteAllText($registration,"NAME $displayName`r`nSTARTUP dll`r`nEXEC_FILE $dll`r`nTEXT_DIR $resources`r`nALLOW_STOP TRUE`r`nDELAY_START FALSE`r`nEND`r`n",$script:utf8)
+    $entries="NAME $displayName`r`nSTARTUP dll`r`nEXEC_FILE $dll`r`nTEXT_DIR $resources`r`nALLOW_STOP TRUE`r`nDELAY_START FALSE`r`nEND`r`n"
+    $clashRoot=Join-Path $native 'resources\interference-v9'
+    if(Test-Path -LiteralPath (Join-Path $clashRoot 'CreoInterference.jar') -PathType Leaf){
+        $clashRoot=$clashRoot.Replace('\','/')
+        $entries+="NAME MWEAIInterference`r`nSTARTUP otk_java`r`nTOOLKIT object`r`nCREO_TYPE parametric`r`nTEXT_DIR $clashRoot/text`r`nJAVA_APP_CLASSPATH $clashRoot/CreoInterference.jar`r`nJAVA_APP_CLASS CreoInterference`r`nJAVA_APP_START start`r`nJAVA_APP_STOP stop`r`nALLOW_STOP TRUE`r`nDELAY_START FALSE`r`nEND`r`n"
+    }
+    [IO.File]::WriteAllText($registration,$entries,$script:utf8)
+}
+function Get-RegistrationBlock($VersionDirectory,$ConfigText,$CreoPath){
+    $registration=Join-Path (Native-Path $InstallRoot) 'protk.dat'
+    $block="! BWTL BEGIN`r`nprotkdat $registration`r`n"
+    $other=[regex]::Replace($ConfigText,$script:marker,'')
+    if((Test-Path -LiteralPath (Join-Path $VersionDirectory 'resources\interference-v9\CreoInterference.jar')) -and
+       !$env:PRO_JAVA_COMMAND -and $other -notmatch '(?im)^\s*jlink_java_command\s+'){
+        $creoRoot=Split-Path (Split-Path (Split-Path $CreoPath -Parent) -Parent) -Parent
+        $java=Join-Path $creoRoot 'Common Files\x86e_win64\gpost\ncjlibs\jre\bin\java.exe'
+        if(!(Test-Path -LiteralPath $java -PathType Leaf)){throw '干涉分析需要 Creo 兼容的 64 位 Java。'}
+        $block+='jlink_java_command "'+$java+'"'+"`r`n"
+    }
+    return $block+"! BWTL END`r`n"
 }
 function Get-Isolation($Root){
     $path=Join-Path $Root 'isolation.json'
@@ -179,7 +198,7 @@ function Invoke-Install {
         if(-not $CodexPath -and $prior -and $prior.CodexPath){$CodexPath=$prior.CodexPath}
         [IO.File]::WriteAllText((Join-Path $versionDirectory 'settings.ini'),"[Runtime]`r`nCodexPath=$CodexPath`r`nDataDirectory=$data`r`n",[Text.Encoding]::Unicode)
         Set-Registration $versionDirectory
-        $registration=Join-Path (Native-Path $InstallRoot) 'protk.dat';$block="! BWTL BEGIN`r`nprotkdat $registration`r`n! BWTL END`r`n"
+        $block=Get-RegistrationBlock $versionDirectory $old.Text $isolation.CreoExecutable
         $new=if($old.Text -match $script:marker){[regex]::Replace($old.Text,$script:marker,[Text.RegularExpressions.MatchEvaluator]{param($m)$block})}else{
             $legacy='(?im)^([ \t]*protkdat[ \t]+[^\r\n]*creo-native-window[\\/]protk\.dat[^\r\n]*)\r?$'
             [regex]::Replace($old.Text,$legacy,'! BWTL migrated legacy registration: $1').TrimEnd()+"`r`n"+$block
@@ -252,7 +271,7 @@ function New-UninstallDialog {
 function Invoke-Manage {
     $statePath=Join-Path $InstallRoot 'active.json';if(-not(Test-Path -LiteralPath $statePath)){throw '未找到本安装器管理的安装。'};$state=Get-Content -LiteralPath $statePath -Raw -Encoding UTF8|ConvertFrom-Json
     if($Rollback -and $state.Uninstalled){throw '当前已卸载启动注册，请先重新安装后再回退。'}
-    if($Rollback){if(-not $state.PreviousDirectory -or -not(Test-Path -LiteralPath (Join-Path $state.PreviousDirectory 'bin\BWTL.dll'))){throw '没有可回退的上一版本。'};Set-Registration $state.PreviousDirectory;$a=$state.Version;$b=$state.Directory;$state.Version=$state.PreviousVersion;$state.Directory=$state.PreviousDirectory;$state.PreviousVersion=$a;$state.PreviousDirectory=$b;Write-Json $statePath $state;return '已切换上一版本；数据保留，手动重启Creo后生效。'}
+    if($Rollback){if(-not $state.PreviousDirectory -or -not(Test-Path -LiteralPath (Join-Path $state.PreviousDirectory 'bin\BWTL.dll'))){throw '没有可回退的上一版本。'};$rollbackConfig=Read-Config $state.Config;$profile=Get-Isolation $InstallRoot;$block=Get-RegistrationBlock $state.PreviousDirectory $rollbackConfig.Text $profile.CreoExecutable;Set-Registration $state.PreviousDirectory;[IO.File]::WriteAllText($state.Config,[regex]::Replace($rollbackConfig.Text,$script:marker,[Text.RegularExpressions.MatchEvaluator]{param($m)$block}),$rollbackConfig.Encoding);$a=$state.Version;$b=$state.Directory;$state.Version=$state.PreviousVersion;$state.Directory=$state.PreviousDirectory;$state.PreviousVersion=$a;$state.PreviousDirectory=$b;Write-Json $statePath $state;return '已切换上一版本；数据保留，手动重启Creo后生效。'}
     $validatedRoot=Assert-ManagedTree $InstallRoot
     $expectedData=Join-Path $validatedRoot 'data';$versions=Join-Path $validatedRoot 'versions'
     if([IO.Path]::GetFullPath($state.Data).TrimEnd('\') -ine $expectedData -or -not [IO.Path]::GetFullPath($state.Directory).StartsWith($versions+'\',[StringComparison]::OrdinalIgnoreCase)){throw '安装状态中的数据或版本路径异常，未执行卸载。'}

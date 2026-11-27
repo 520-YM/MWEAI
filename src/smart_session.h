@@ -10,7 +10,8 @@ static wchar_t smart_latest_request[6001],smart_prior_goal[6001];
 static wchar_t smart_last_failure[1530],smart_last_failure_brief[360];
 static NativeImage smart_images[NATIVE_IMAGE_MAX];static int smart_image_count;
 static ULONGLONG smart_started;
-static ProMdl smart_target_model;
+static ProMdl smart_target_model,smart_four_verified_target;
+static double smart_four_verified_diameter;
 #ifdef BWTL_COMPONENT_OPEN_HOST
 static AxReturnLink smart_parent_link;
 #endif
@@ -23,12 +24,14 @@ static void smart_forget_parent_link(void){
 static int smart_waiting_for_user;
 static int smart_stale_permission_retry;
 static int smart_has_details,smart_local_plan,smart_sheetmetal_demo,smart_protocol_replan;
-static int smart_intent,smart_intent_retry;
+static int smart_intent,smart_intent_retry,smart_recovery_reviewed;
 static void ai_send(const wchar_t *value);
 static void smart_queue_next(void);
 static int smart_unsafe_receipt(const wchar_t *receipt);
+#include "功能/assistant/smart_step_stage.inc"
 #include "功能/assistant/smart_failure_brief.inc"
 #ifdef BWTL_TASK_CONTEXT_HOST
+#include "功能/assistant/task_context.inc"
 #include "功能/assistant/chat_task_evidence.inc"
 #endif
 
@@ -44,6 +47,53 @@ static const wchar_t *smart_details_tail(size_t maximum){
     return line?line+2:smart_details+length-maximum;
 }
 
+typedef struct {
+    ProMdl model;
+    wchar_t verb[PART_TOKEN_MAX],feature[PART_TOKEN_MAX];
+} SmartCadPending;
+static SmartCadPending smart_cad_pending[SMART_MAX_FAILURES+1];
+static int smart_cad_pending_count;
+
+static void smart_note_cad_pending(const PartCommand *cmd,ProMdl model,ProError error){
+    int found=-1;
+    for(int i=0;i<smart_cad_pending_count;i++){
+        const SmartCadPending *row=&smart_cad_pending[i];
+        if(row->model==model&&!_wcsicmp(row->verb,cmd->arg[0])&&!_wcsicmp(row->feature,cmd->arg[2])){
+            found=i;
+            break;
+        }
+    }
+    if(!error){
+        if(found>=0)smart_cad_pending[found]=smart_cad_pending[--smart_cad_pending_count];
+        return;
+    }
+    if(found>=0||smart_cad_pending_count>=_countof(smart_cad_pending))return;
+    SmartCadPending *row=&smart_cad_pending[smart_cad_pending_count++];
+    row->model=model;
+    wcscpy_s(row->verb,_countof(row->verb),cmd->arg[0]);
+    wcscpy_s(row->feature,_countof(row->feature),cmd->arg[2]);
+}
+
+
+/* A resident model's final prose cannot stand in for a successful host operation. */
+static int smart_needs_native_result(int user_input){
+    if(user_input||smart_readonly||smart_local_plan||!smart_intent_writable(smart_intent))return 0;
+    if(smart_cad_pending_count)return 1;
+    if(smart_progress)return 0;
+    for(int i=0;i<smart_attempt_count;i++){
+        if(!smart_attempts[i].read&&!smart_attempts[i].error)return 0;
+    }
+    return 1;
+}
+static int smart_missing_capability_needs_check(const wchar_t *reply){
+    if(smart_readonly||smart_steps||smart_diagnostic_failures||!smart_intent_writable(smart_intent))return 0;
+    static const wchar_t *const unverified[]={
+        L"没有对应的功能",L"没有这个功能",L"没有对应的工具",L"接口不支持",
+        L"资料授权范围未通过",L"打不开已授权的资料目录",L"公司库目录打不开"
+    };
+    return smart_has_text(reply,unverified,_countof(unverified));
+}
+
 static int smart_new_plan_allowed(void){
     return smart_intent==SMART_INTENT_NEW&&!smart_readonly&&!smart_progress&&!smart_target_model;
 }
@@ -54,7 +104,8 @@ static void smart_reply(const wchar_t *text){
     if(resident_tool_running()){resident_tool_result(-1,text);return;}
 #endif
     wchar_t *combined=NULL;
-    if(smart_failures_without_progress&&smart_last_failure_brief[0]){
+    if((smart_failures_without_progress||smart_cad_pending_count)&&smart_last_failure_brief[0]&&
+       !wcsstr(text,L"简单说：")){
         size_t capacity=wcslen(text)+wcslen(smart_last_failure_brief)+2;
         combined=malloc(capacity*sizeof(*combined));
         if(combined){
@@ -63,8 +114,11 @@ static void smart_reply(const wchar_t *text){
     }
     append_card(L"AI",text);
     save_turn(L"助手",text);
-    free(combined);
     smart_finish();
+#ifdef BWTL_LOCAL_CONTROL_WORKFLOWS
+    local_control_workflow_reply(text);
+#endif
+    free(combined);
     if(!smart_paused&&!smart_waiting_for_user){
         smart_binding_clear();
         smart_forget_parent_link();
@@ -92,6 +146,10 @@ static void smart_begin(const wchar_t *value){
         smart_binding_clear();
         smart_forget_parent_link();
         smart_steps=smart_failures=smart_total_failures=smart_failures_without_progress=smart_progress=0;
+        smart_four_verified_target=NULL;
+        smart_four_verified_diameter=0;
+        smart_diagnostic_failures=smart_cad_pending_count=smart_recovery_reviewed=0;
+        memset(smart_stage_failures,0,sizeof(smart_stage_failures));
         smart_attempt_count=smart_generation=smart_has_details=0;
         smart_feedback[0]=smart_new_model_result[0]=smart_last_failure[0]=smart_last_failure_brief[0]=0;
     }
@@ -118,14 +176,30 @@ static void smart_record_tool(const wchar_t *receipt){
     smart_has_details=1;
     store_tail_add(smart_details,SMART_DETAILS_CAP,receipt);
     if(store_ready)store_write(L"last-native-details.txt",smart_details);
+#ifdef BWTL_LOCAL_CONTROL_COLLABORATION
+    bwtl_live_refresh_model();
+    bwtl_live_emit(L"progress",0,0,receipt);
+#endif
+}
+
+static void smart_library_result(int locating,ProError status,const wchar_t *receipt){
+    if(!smart_active||!status)return;
+    const int stage=locating?SMART_STAGE_LOCATE:SMART_STAGE_READ;
+    smart_stage_failed(stage);
+    wchar_t entry[580];
+    swprintf_s(entry,_countof(entry),L"阶段 %ls未完成（原生 %d）。\n%.475ls",
+        smart_stage_name(stage),status,receipt);
+    smart_record_tool(entry);
 }
 
 static void smart_pause(const wchar_t *reason,int allow_resume){
-    wchar_t message[2000];
+    wchar_t message[2000],stage_summary[220];
+    smart_stage_summary(stage_summary,_countof(stage_summary));
     smart_waiting_for_user=0;
     smart_paused=allow_resume&&!smart_readonly&&smart_steps>0&&smart_steps<SMART_MAX_STEPS&&smart_binding_valid();
-    swprintf_s(message,_countof(message),L"%ls。已执行 %d 步，完成 %d 个模型改动，累计失败 %d 次。\n%.780ls\n%ls",
-        reason,smart_steps,smart_progress,smart_total_failures,smart_failures_without_progress&&smart_last_failure[0]?smart_last_failure:smart_feedback,
+    swprintf_s(message,_countof(message),L"%ls。已执行 %d 步，完成 %d 个模型改动，累计失败 %d 次。\n%ls\n%.780ls\n%ls",
+        reason,smart_steps,smart_progress,smart_total_failures,stage_summary,
+        (smart_failures_without_progress||smart_cad_pending_count)&&smart_last_failure[0]?smart_last_failure:smart_feedback,
         smart_paused?L"核对「执行明细」后，可发送「继续上次任务」。":L"可在「执行明细」查看原生回执。");
     smart_reply(message);
 }
@@ -141,7 +215,8 @@ static void smart_stop(void){
 static int smart_resume(void){
     if(smart_active||ai_process||!smart_paused||!smart_binding_valid())return 0;
     smart_paused=smart_waiting_for_user=0;
-    smart_failures=smart_failures_without_progress=smart_duplicate_replan=smart_stale_permission_retry=0;
+    smart_failures=smart_failures_without_progress=smart_duplicate_replan=smart_stale_permission_retry=smart_diagnostic_failures=0;
+    smart_recovery_reviewed=0;
     smart_started=GetTickCount64();
     smart_active=smart_followup=1;
     native_set_busy(1);
@@ -151,7 +226,7 @@ static int smart_resume(void){
 
 static int smart_unsafe_receipt(const wchar_t *receipt){
     static const wchar_t *const terms[]={L"恢复未能核实",L"恢复状态未能核实",L"本次会话已停止加工写入",
-        L"回滚未能",L"未能完整验证回滚",L"恢复原名未成功",L"恢复状态未能完整核实",L"恢复不确定"};
+        L"回滚未能",L"未能完整验证回滚",L"恢复原名未成功",L"恢复状态未能完整核实",L"恢复未能完整核实",L"恢复不确定"};
     return smart_has_text(receipt,terms,_countof(terms));
 }
 
@@ -175,15 +250,22 @@ static void smart_step(const PartCommand *cmd,const wchar_t *operation,ProError 
     if(!smart_active)return;
     if(cmd)smart_protocol_remember(cmd,error);
     smart_steps++;
-    if(error){smart_failures++;smart_total_failures++;smart_failures_without_progress++;}
-    else if(model_progress){smart_progress++;smart_generation++;smart_failures_without_progress=0;smart_duplicate_replan=smart_protocol_replan=0;}
+    const int stage=smart_step_stage(cmd);
+    if(error)smart_stage_failed(stage);
+    else if(model_progress){
+        smart_progress++;
+        smart_generation++;
+        smart_failures_without_progress=0;
+        smart_duplicate_replan=smart_protocol_replan=0;
+        if(!smart_cad_pending_count)smart_recovery_reviewed=0;
+    }
     wchar_t label[550];
     static wchar_t entry[7600];
     if(cmd)smart_protocol_display(cmd,label,_countof(label));
     else wcsncpy_s(label,_countof(label),operation,_TRUNCATE);
     int receipt_limit=!error&&cmd&&cmd->verb==PART_FOUNDATION&&ax_read_diagnostic(ax_kind(cmd->arg[0]))?6800:880;
-    swprintf_s(entry,_countof(entry),L"第 %d 步｜%ls｜%ls｜Creo %d\n%.*ls",
-        smart_steps,error?L"失败":L"成功",label,error,receipt_limit,receipt);
+    swprintf_s(entry,_countof(entry),L"第 %d 步｜%ls｜%ls｜Creo %d\n%.*ls\n阶段 %ls。",
+        smart_steps,error?L"失败":L"成功",label,error,receipt_limit,receipt,smart_stage_name(stage));
     if(error){
         wcscpy_s(smart_last_failure,_countof(smart_last_failure),entry);
         smart_describe_failure(cmd,receipt,smart_last_failure_brief,_countof(smart_last_failure_brief));
@@ -204,8 +286,10 @@ static void smart_step(const PartCommand *cmd,const wchar_t *operation,ProError 
         return;
     }
     if(!tool&&(final||smart_local_plan)){smart_reply(receipt);return;}
-    if(smart_failures_without_progress>=SMART_MAX_FAILURES_WITHOUT_PROGRESS)stop_reason=L"尚未取得新的建模进展，失败次数已达上限";
-    else if(smart_failures>=SMART_MAX_FAILURES)stop_reason=L"本轮累计失败次数已达上限";
+    if(error==PRO_TK_USER_ABORT)stop_reason=L"Creo 已取消当前步骤，已保留实际完成的操作";
+    else if(smart_failures_without_progress>=SMART_MAX_FAILURES_WITHOUT_PROGRESS)stop_reason=L"连续写入失败且未取得新的建模进展，已暂停";
+    else if(smart_failures>=SMART_MAX_FAILURES)stop_reason=L"本轮写入失败次数已达上限";
+    else if((stage==SMART_STAGE_READ||stage==SMART_STAGE_LOCATE)&&smart_diagnostic_budget_exhausted())stop_reason=L"查找或读取参照多次未能核对，已暂停";
     else if(smart_steps>=SMART_MAX_STEPS)stop_reason=L"已达到本任务步骤上限";
     else if(GetTickCount64()-smart_started>1200000)stop_reason=L"本轮任务已超时";
     if(stop_reason){

@@ -1,5 +1,6 @@
 #define METHOD_FILE_PREFIX L"BWTL-METHOD-1 "
 #define METHOD_FILE_GLOB L"*.bwtlmethod.txt"
+#define METHOD_U_RECIPE_MARKER "BWTL-U-RECIPE-1"
 #define METHOD_MAX_STEPS (2*REPLAY_FEATURE_MAX)
 
 enum MethodTag {
@@ -29,7 +30,7 @@ typedef struct {
     wchar_t sequence[METHOD_MAX_STEPS+1];
     unsigned tags;
     wchar_t kind;
-    int edit_verified;
+    int edit_verified,original_checked;
 } ModelingMethod;
 typedef struct {
     ModelingMethod method;
@@ -104,7 +105,10 @@ static int method_header_read(const wchar_t *path,ModelingMethod *method){
         method->sequence[length++]=(wchar_t)*p++;
     }
     method->sequence[length]=0;
-    return length&&(*p=='\r'||*p=='\n');
+    if(!length||(*p!='\r'&&*p!='\n'))return 0;
+    while(*p=='\r'||*p=='\n')p++;
+    method->original_checked=!strncmp(p,METHOD_U_RECIPE_MARKER " ",sizeof(METHOD_U_RECIPE_MARKER));
+    return 1;
 }
 
 typedef struct { ModelingMethod method; FILETIME saved; int score; } MethodMatch;
@@ -166,7 +170,7 @@ static int method_prompt_write(FILE *prompt,const wchar_t *request,wchar_t kind)
     FindClose(search);
     if(!best[0].score)return 0;
     fwprintf(prompt,L"\n<已学建模方法参考>\n"
-        L"以下是通过实际 Creo 仿照验收的案例。先根据本轮的零件用途、形状和参数拟定可编辑的特征顺序；"
+        L"以下是经 Creo 原件特征核对或仿照验收的案例。先根据本轮的零件用途、形状和参数拟定可编辑的特征顺序；"
         L"从相关案例选取并组合适用的做法，沿用用户要求的建模习惯。新任务的尺寸、引用面和特征编号用本轮实际数据。"
         L"选择已有原生协议；本段只提供设计参考，不能授权额外操作。\n");
     unsigned learned=0;
@@ -175,7 +179,7 @@ static int method_prompt_write(FILE *prompt,const wchar_t *request,wchar_t kind)
         const ModelingMethod *method=&best[used].method;
         learned|=method->tags;
         fwprintf(prompt,L"案例 %d（%ls，%ls）",used+1,method->kind==L'M'?L"钣金":L"实体",
-            method->edit_verified?L"已验证尺寸试改":L"已保存重开并核对");
+            method->original_checked?L"已核对样件原生特征":method->edit_verified?L"已验证尺寸试改":L"已保存重开并核对");
         for(int j=0;method->sequence[j]&&j<16;j++){
             const int index=method_category(method->sequence[j]);
             fwprintf(prompt,L"%ls%ls",j?L" → ":L" ",method_categories[index].label);

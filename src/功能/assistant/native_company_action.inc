@@ -23,6 +23,14 @@ static void native_company_action(void){
         return;
     }
     free(catalog.items);
+    if(action==COMPANY_PRESSFIT_HELP){
+        MessageBoxW(native_window,
+            L"在 Creo 目标装配选中安装面和孔，发送「装配BSO M3×8」。\n"
+            L"仅选安装面时，可用「这一面全部装配BSO M3×8」或明确给出数量。\n"
+            L"实际支持、孔径和安装侧以本机回执为准。查询型号可用「查看压铆件验收 BSO M3×8」。",
+            L"MWEAI 压铆装配与选件",MB_OK|MB_ICONINFORMATION);
+        return;
+    }
     if(action==COMPANY_RULE_VIEW){
         PostMessageW(native_backend_window,BWTL_MODELING_RULE_VIEW,0,0);
         return;

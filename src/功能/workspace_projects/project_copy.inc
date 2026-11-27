@@ -94,8 +94,8 @@ static DWORD project_copy_create(const wchar_t *root,const wchar_t *name,
     workdir[0]=0;
     error_text[0]=0;
     DWORD length=GetFullPathNameW(root,MAX_PATH,base,NULL);
-    if(!length||length>=MAX_PATH||towupper(base[0])!=storage_data_drive()||base[1]!=L':'||base[2]!=L'\\'){
-        wcscpy_s(error_text,512,L"项目根目录不可用，请核对安装时选择的数据盘。");
+    if(!length||length>=MAX_PATH||towupper(base[0])!=L'E'||base[1]!=L':'||base[2]!=L'\\'){
+        wcscpy_s(error_text,512,L"项目根目录不可用，请核对 E 盘。");
         return ERROR_PATH_NOT_FOUND;
     }
     error=project_copy_check_directory(base);
@@ -114,7 +114,7 @@ static DWORD project_copy_create(const wchar_t *root,const wchar_t *name,
     length=GetFinalPathNameByHandleW(base_handle,resolved,_countof(resolved),VOLUME_NAME_DOS);
     CloseHandle(base_handle);
     if(length<=4||length>=_countof(resolved)||wcsncmp(resolved,L"\\\\?\\",4)||_wcsicmp(resolved+4,base)){
-        wcscpy_s(error_text,512,L"项目根目录必须是所选数据盘上的实际目录。");
+        wcscpy_s(error_text,512,L"项目根目录必须是 E 盘上的实际目录。");
         return ERROR_NOT_SUPPORTED;
     }
 

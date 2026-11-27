@@ -27,8 +27,8 @@ static int run_failure(uiCmdCmdId cmd,uiCmdValue *value,void *data){
             const wchar_t *brief=card?wcsstr(card,L"简单说："):NULL;
             passed=!smart_active&&smart_total_failures==1&&smart_steps==1&&
                 brief&&!wcsstr(card+4,L"【AI】")&&!wcsstr(brief+1,L"简单说：")&&
-                wcsstr(brief,L"画钣金草绘没成功")&&wcsstr(brief,L"指定的面和方向")&&
-                wcsstr(smart_details,L"fd_sketch_setup(")&&!wcsstr(smart_details,L"简单说：")&&
+                wcsstr(brief,L"草绘面 PLANE:NO_SUCH_DATUM")&&wcsstr(brief,L"不可用")&&
+                wcsstr(smart_details,L"resolve sketch plane")&&!wcsstr(smart_details,L"简单说：")&&
                 wcsstr(conversation,smart_last_failure_brief)!=NULL;
         }
     }

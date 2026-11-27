@@ -10,6 +10,7 @@ static int memory_command(const wchar_t *value) {
         experience_last_reply[0]=0;
         conversation[0] = 0; history[0] = 0;
         chat_task_forget();
+        chat_task_context_reset();
         resident_reset_thread=1;
         foundation_reset();memset(&pending_part,0,sizeof(pending_part));part_snapshot_clear(&request_snapshot);
         pending_plan.ready = 0;

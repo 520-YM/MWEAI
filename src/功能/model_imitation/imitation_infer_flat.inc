@@ -6,6 +6,7 @@ typedef struct {
     ProEnttype type;
     ProVector a,b,center,middle;
     double radius;
+    int contour,external;
 } ImitationInferredEdge;
 
 typedef struct {
@@ -87,7 +88,13 @@ static ProError imitation_infer_loop(ProContour contour,ProError status,ProAppDa
             plan->count--;
         }
     }
-    if(!error)plan->loops++;
+    if(!error){
+        for(int i=start;i<plan->count;i++){
+            plan->edge[i].contour=plan->loops;
+            plan->edge[i].external=traversal==PRO_CONTOUR_TRAV_EXTERNAL;
+        }
+        plan->loops++;
+    }
     return error;
 }
 
@@ -121,6 +128,21 @@ static AsPoint imitation_inferred_point(const double *point,const ProMatrix fram
     return as_point(ad_dot(local,frame[0]),ad_dot(local,frame[1]));
 }
 
+static ProError imitation_inferred_arc(ProSection section,const ImitationInferredEdge *edge,
+                                       const ProMatrix frame,double scale,int *id)
+{
+    const AsPoint start=imitation_inferred_point(edge->a,frame,scale);
+    const AsPoint end=imitation_inferred_point(edge->b,frame,scale);
+    const AsPoint center=imitation_inferred_point(edge->center,frame,scale);
+    const AsPoint mid=imitation_inferred_point(edge->middle,frame,scale);
+    double a=atan2(start.y-center.y,start.x-center.x);
+    const double b=atan2(end.y-center.y,end.x-center.x);
+    const double m=atan2(mid.y-center.y,mid.x-center.x);
+    double sweep=fmod(b-a+2*AS_PI,2*AS_PI);
+    if(fmod(m-a+2*AS_PI,2*AS_PI)>sweep){a=b;sweep=2*AS_PI-sweep;}
+    return as_add_arc(section,center,edge->radius*scale,a,a+sweep,id);
+}
+
 static ProError imitation_draw_flat_plan(ProSection section,const ProMatrix frame,double scale,void *data)
 {
     const ImitationFlatPlan *plan=data;
@@ -137,15 +159,7 @@ static ProError imitation_draw_flat_plan(ProSection section,const ProMatrix fram
                 error=model_circle(section,center.x,center.y,edge->radius*scale,&id);
                 if(!error)error=model_section_dimension(section,id,PRO_TK_DIM_DIA,2*edge->radius*scale,
                     center.x+4*edge->radius*scale,center.y+4*edge->radius*scale);
-            }else{
-                const AsPoint mid=imitation_inferred_point(edge->middle,frame,scale);
-                double a=atan2(start.y-center.y,start.x-center.x);
-                double b=atan2(end.y-center.y,end.x-center.x);
-                const double m=atan2(mid.y-center.y,mid.x-center.x);
-                double sweep=fmod(b-a+2*AS_PI,2*AS_PI);
-                if(fmod(m-a+2*AS_PI,2*AS_PI)>sweep){a=b;sweep=2*AS_PI-sweep;}
-                error=as_add_arc(section,center,edge->radius*scale,a,a+sweep,&id);
-            }
+            }else error=imitation_inferred_arc(section,edge,frame,scale,&id);
         }
         if(error)return error;
     }

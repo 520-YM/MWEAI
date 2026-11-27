@@ -185,6 +185,13 @@ static int catalog_write_document(wchar_t *file,size_t capacity){
         catalog_heading,BWTL_BUILD_VERSION,list->count,catalog_count_label,catalog_usage);
     fwprintf(out,L"Creo 回溯风险\n标记项目在特定参照、附加壁未完整生成或原生清理阶段有过 Creo 回溯。逐项触发条件、已验收范围及替代用法记录在下方文件。\n%ls\\docs\\Creo回溯风险重点提醒.md\n\n",
         runtime_root);
+    fwprintf(out,L"聊天指令：AI 绘图工作流\n"
+        L"• 学习当前 U 形加强筋的做法\n"
+        L"• 按学到的做法画一个 U 形加强筋，620×30×14 mm，板厚 2.5 mm\n"
+        L"• 这一面全部装配压铆螺母，型号你定\n"
+        L"• 装配公司库电子件 型号 SURFACE:安装面 SURFACE:第一孔 SURFACE:第二孔\n"
+        L"• 给当前模型生成交付包\n"
+        L"%ls\\docs\\AI绘图工作流第7–10项.md\n\n",runtime_root);
     const wchar_t *group=L"";
     for(size_t i=0;i<list->count;i++){
         const CatalogEntry *item=&list->entries[i];

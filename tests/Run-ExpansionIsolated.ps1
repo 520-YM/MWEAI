@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Core','Solid','Machining','Custom')][string]$Suite='Core',[string]$Root,[string]$CustomSource,[string]$FixtureProfileRoot,[switch]$ReuseFixture,[Parameter(Mandatory=$true)][string]$WorkDirectory,[string]$StandardsConfig='C:\PTC\Pro_Stds-C\00_config\config.pro',[string]$CreoBase='C:\Program Files\PTC\Creo 10.0.0.0')
+param([ValidateSet('Core','Solid','Machining','Custom')][string]$Suite='Core',[string]$Root,[string]$CustomSource,[string]$FixtureProfileRoot,[string]$ResidentExecutable,[switch]$ReuseFixture,[Parameter(Mandatory=$true)][string]$WorkDirectory,[string]$StandardsConfig='C:\PTC\Pro_Stds-C\00_config\config.pro',[string]$CreoBase='C:\Program Files\PTC\Creo 10.0.0.0')
 $ErrorActionPreference='Stop'
 $repo=if($Root){[IO.Path]::GetFullPath($Root)}else{Split-Path -Parent $PSScriptRoot};$testRoot=Join-Path $repo "tests";$WorkDirectory=[IO.Path]::GetFullPath($WorkDirectory)
 if(Test-Path -LiteralPath $WorkDirectory){throw 'Native test work directory must be new.'}
@@ -37,6 +37,18 @@ if($FixtureProfileRoot){
     $start.EnvironmentVariables['BWTL_PROFILE_ROOT']=$profile
     $fixtureData=Join-Path $profile 'data'
     [IO.File]::WriteAllText((Join-Path $WorkDirectory 'settings.ini'),"[Runtime]`r`nDataDirectory=$fixtureData`r`n",[Text.Encoding]::Unicode)
+}
+if($ResidentExecutable){
+    if($Suite -ne 'Custom' -or $FixtureProfileRoot -or $ReuseFixture){
+        throw 'Live resident validation requires a fresh custom fixture.'
+    }
+    $codexExe=(Resolve-Path -LiteralPath $ResidentExecutable).Path
+    if((Split-Path $codexExe -Leaf) -ne 'codex.exe'){throw 'Use the installed Codex executable.'}
+    $runtimeScripts=New-Item -ItemType Directory -Path (Join-Path $WorkDirectory 'scripts')
+    foreach($script in @('Start-BWTLCodexSession.ps1','Read-BWTLChatAttachment.ps1','Read-BWTLLibraryDocument.ps1')){
+        Copy-Item -LiteralPath (Join-Path $repo ('scripts\'+$script)) -Destination $runtimeScripts.FullName
+    }
+    [IO.File]::WriteAllLines((Join-Path $WorkDirectory 'settings.ini'),@('[Runtime]', ('CodexPath='+ $codexExe)),[Text.Encoding]::Unicode)
 }
 if($ReuseFixture){$start.EnvironmentVariables['BWTL_TEST_REUSE']='1'}
 $start.EnvironmentVariables['BWTL_OUTPUT_DRIVE']=[IO.Path]::GetPathRoot($WorkDirectory).Substring(0,1)

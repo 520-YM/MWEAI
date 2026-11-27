@@ -137,7 +137,13 @@ static int study_main(uiCmdCmdId cmd,uiCmdValue *val,void *app){
     PartText out={report,_countof(report),0};
     GetEnvironmentVariableW(L"BWTL_STUDY_MODE",mode,_countof(mode));
     GetEnvironmentVariableW(L"BWTL_STUDY_WORK",directory,_countof(directory));
-    ProError error=ProDirectoryChange(directory);
+    ProError error=storage_directory_on_drive(directory,L'E')?ProDirectoryChange(directory):PRO_TK_BAD_CONTEXT;
+    wchar_t test_data[MAX_PATH];
+    DWORD size=GetEnvironmentVariableW(L"BWTL_STUDY_TEST_DATA",test_data,_countof(test_data));
+    if(!error&&size){
+        if(size>=_countof(test_data)||!storage_directory_on_drive(test_data,L'E'))error=PRO_TK_BAD_CONTEXT;
+        else wcscpy_s(runtime_data,_countof(runtime_data),test_data);
+    }
     study_check(L"E-drive workspace",error);
     if(!error&&!wcscmp(mode,L"company")){
         ProPath input;

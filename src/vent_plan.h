@@ -10,7 +10,7 @@ static int vt_kind(const wchar_t *verb){
 }
 
 static int vt_request(const wchar_t *text){
-    static const wchar_t *const terms[]={L"VENT_",L"圆孔散热",L"散热圆孔",L"长槽散热",L"散热长槽",L"百叶通风",
+    static const wchar_t *const terms[]={L"VENT_",L"圆孔散热",L"散热圆孔",L"圆孔网格",L"圆孔阵列",L"长槽散热",L"散热长槽",L"百叶通风",
         L"冲孔网格",L"底部排水孔",L"防水接头孔",L"格兰头孔",L"护线圈安装",L"挡水台阶",L"矩形密封槽",L"线束转弯"};
     for(int i=0;i<_countof(terms);i++)if(wcsstr(text,terms[i]))return 1;
     return 0;

@@ -2,6 +2,7 @@ typedef struct FastenerSavedView {
     struct FastenerSavedView *next;
     ProMdl model;
     ProWVerstamp stamp;
+    int verified_placement_stamp,direct_project_file;
     BY_HANDLE_FILE_INFORMATION source;
     wchar_t path[MAX_PATH],stage[MAX_PATH];
 } FastenerSavedView;
@@ -41,7 +42,8 @@ static int fastener_saved_load(const wchar_t *path,HANDLE source,ProMdl *model){
     return 0;
 }
 
-static void fastener_saved_record(const wchar_t *path,HANDLE source,ProMdl model){
+static void fastener_saved_record_at(const wchar_t *path,HANDLE source,ProMdl model,const wchar_t *directory,
+    int direct_project_file){
     FastenerSavedView *entry=fastener_saved_model(model);
     if(entry)return;
     entry=calloc(1,sizeof(*entry));
@@ -51,12 +53,16 @@ static void fastener_saved_record(const wchar_t *path,HANDLE source,ProMdl model
         free(entry);return;
     }
     entry->model=model;
+    entry->direct_project_file=direct_project_file;
     wcscpy_s(entry->path,MAX_PATH,path);
-    wcscpy_s(entry->stage,MAX_PATH,fastener_last_stage);
+    wcscpy_s(entry->stage,MAX_PATH,directory);
     entry->next=fastener_saved_views;
     fastener_saved_views=entry;
 }
 
+static void fastener_saved_record(const wchar_t *path,HANDLE source,ProMdl model){
+    fastener_saved_record_at(path,source,model,fastener_last_stage,0);
+}
 static void fastener_saved_clear(void){
     while(fastener_saved_views){
         FastenerSavedView *entry=fastener_saved_views;
@@ -97,7 +103,7 @@ static ProError fastener_save_project(ProMdl model,const wchar_t *input_director
     wchar_t stage[MAX_PATH],pattern[MAX_PATH],check[MAX_PATH];
     ProError error=PRO_TK_NO_ERROR;
     FastenerSavedView *known=fastener_saved_model(model);
-    if(known)wcscpy_s(stage,MAX_PATH,known->stage);
+    if(known&&!known->direct_project_file)wcscpy_s(stage,MAX_PATH,known->stage);
     else {
         if(swprintf_s(stage,MAX_PATH,L"%ls\\fastener-save-%u",ai_dir,++serial)<0||
            !storage_output_directory(ai_dir)||!CreateDirectoryW(stage,NULL))return PRO_TK_CANT_WRITE;

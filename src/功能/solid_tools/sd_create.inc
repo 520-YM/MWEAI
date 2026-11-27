@@ -1,4 +1,8 @@
+static ProMdl sd_cad_rolled_back_model;
+static ProError sd_cad_rolled_back_error;
+
 static ProError sd_create_on_body(const PartCommand *cmd,ProMdl model,wchar_t *report,size_t capacity,int default_body){
+    sd_cad_rolled_back_model=NULL;
     FdTxn tx={0};FdRef sketch={0},axis={0},target={0};ProElement section=NULL,body=NULL,depth=NULL,from=NULL,to=NULL;
     ProSectionShape shape;ProMassProperty after;ProError e;ProFeatStatus status;
     int revolve_cut=!wcscmp(cmd->arg[0],L"SOLID_REVOLVE_CUT");
@@ -52,11 +56,13 @@ static ProError sd_create_on_body(const PartCommand *cmd,ProMdl model,wchar_t *r
     swprintf_s(report,capacity,L"已在当前零件创建%ls %ls，引用草绘%ls。特征ID%d，体积 %.9g → %.9g mm³；单实体、父参照及重生成核对通过。未另建零件，未保存。",operation,cmd->arg[2],cmd->arg[3],tx.feature.id,old_volume/(tx.scale*tx.scale*tx.scale),after.volume/(tx.scale*tx.scale*tx.scale));
 done:
     if(e&&tx.errors.error_list){for(i=0;i<tx.errors.error_number&&i<32;i++){trace("solid element error id",tx.errors.error_list[i].err_item_id);trace("solid element error code",tx.errors.error_list[i].error);}}
+    const int checked=e&&tx.root&&tx.before_count&&!wcscmp(cmd->arg[0],L"SOLID_EXTRUDE");
     if(parents)ProArrayFree((ProArray *)&parents);fd_ref_free(&sketch);fd_ref_free(&axis);fd_ref_free(&target);fd_cleanup(&tx,e);
     if(e&&(revolve_cut||advanced)&&tx.created&&
        (part_health(model)||sd_body_count(model,&body_after)||body_after!=body_before||
         (body_before&&(ProSolidMassPropertyWithDensityGet((ProSolid)model,NULL,PRO_MP_DENS_USE_ALWAYS,1,&after)||
         !part_close(after.volume,old_volume)))))tx.rollback_ok=0;
+    if(checked&&tx.rollback_ok){sd_cad_rolled_back_model=model;sd_cad_rolled_back_error=e;}
     if(e)swprintf_s(report,capacity,L"实体操作未完成：%hs，错误码%d。%ls，未保存。",tx.stage,e,tx.rollback_ok?L"未新增或已核对移除本次特征":L"恢复状态未能核实，请检查模型");return e;
 #undef SD_TRY
 }

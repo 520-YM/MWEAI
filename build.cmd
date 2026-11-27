@@ -31,5 +31,13 @@ cl /nologo /MD /W3 /utf-8 /GS /DPRO_MACHINE=36 /DPRO_OS=4 /FI"%~dp0build\bwtl_bu
 if errorlevel 1 exit /b 1
 link /nologo /DLL /MACHINE:X64 /OUT:bin\%BWTL_BUILD_NAME%.dll /IMPLIB:build\%BWTL_BUILD_NAME%.lib build\assistant.obj "%PTK%\x86e_win64\obj\protk_dllmd_NU.lib" "%PTK%\x86e_win64\obj\ucore.lib" "%PTK%\x86e_win64\obj\udata.lib" kernel32.lib user32.lib wsock32.lib advapi32.lib mpr.lib winspool.lib netapi32.lib psapi.lib gdi32.lib shell32.lib comdlg32.lib ole32.lib ws2_32.lib windowscodecs.lib uuid.lib
 set "RESULT=%ERRORLEVEL%"
+if "!RESULT!"=="0" (
+  cl /nologo /MD /W3 /utf-8 /GS /DPRO_MACHINE=36 /DPRO_OS=4 /I"%PTK%\includes" /I"%~dp0src" /c src\background_worker.c /Fobuild\background-worker.obj
+  if errorlevel 1 exit /b 1
+  link /nologo /DLL /MACHINE:X64 /OUT:bin\MWEAI-BackgroundCreo.dll /IMPLIB:build\MWEAI-BackgroundCreo.lib build\background-worker.obj "%PTK%\x86e_win64\obj\protk_dllmd_NU.lib" "%PTK%\x86e_win64\obj\ucore.lib" "%PTK%\x86e_win64\obj\udata.lib" kernel32.lib user32.lib wsock32.lib advapi32.lib mpr.lib winspool.lib netapi32.lib psapi.lib gdi32.lib shell32.lib comdlg32.lib ole32.lib ws2_32.lib windowscodecs.lib uuid.lib
+  if errorlevel 1 exit /b 1
+)
 popd
 exit /b %RESULT%
+
+

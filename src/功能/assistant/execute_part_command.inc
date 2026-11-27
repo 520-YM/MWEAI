@@ -1,5 +1,7 @@
 #include "traceback_risk.inc"
 #include "smart_sketch_recovery.inc"
+#include "smart_cad_recovery.inc"
+#include "smart_recovery_observe.inc"
 static ProError imitation_run_chat(ProMdl source,ProPath delivered,int *partial,PartText *out);
 static ProError imitation_resize_command(const PartCommand *command,const PartSnapshot *snapshot,
                                          wchar_t *text,size_t capacity);
@@ -120,12 +122,21 @@ static void execute_part_command(void){
     if(resident_tool_running()&&!independent&&command.verb!=PART_DISPLAY&&quality!=AX_Q_REPORT)final=0;
     int write=!smart_read_command(&command);
     if(smart_block_duplicate(&command))return;
+    const int four_holes=foundation&&!wcscmp(verb,L"SMT_FLAT4");
+    double requested_diameter;
+    if(four_holes&&smart_four_task_diameter(&requested_diameter)&&
+       fabs(as_arg(&command,2)-requested_diameter)>0.000001){
+        swprintf_s(result,_countof(result),L"四孔孔径须使用你指定的 %.8g mm。本次没有改动模型。",requested_diameter);
+        smart_step(&command,verb,PRO_TK_BAD_INPUTS,result,0,0,0);
+        return;
+    }
     if(!independent&&smart_target_model&&request_snapshot.model==smart_target_model&&
        _wcsicmp(command.arg[1],request_snapshot.name)&&smart_binding_valid()){
         swprintf_s(result,_countof(result),L"本次操作尚未执行。当前已核对目标是 %ls.%ls。"
             L"请先读取新目标的参照，再按当前模型继续尚未完成的步骤。",request_snapshot.name,
             request_snapshot.type==PRO_MDL_ASSEMBLY?L"ASM":L"PRT");
-        smart_step(&command,verb,PRO_TK_BAD_CONTEXT,result,0,final,0);
+        const int recover_target=!smart_local_plan&&!smart_readonly&&smart_intent_writable(smart_intent);
+        smart_step(&command,verb,PRO_TK_BAD_CONTEXT,result,0,final&&!recover_target,0);
         return;
     }
     if((command.verb==PART_DIMS||command.verb==PART_PARAM||command.verb==PART_SUPPRESS||command.verb==PART_RESUME)&&!part_selfcheck_passed){
@@ -136,27 +147,101 @@ static void execute_part_command(void){
     SmartPartSignature before={0};
     fd_sketch_rolled_back_model=NULL;
     sh_cut_rolled_back_model=NULL;
+    sh_cad_rolled_back_model=NULL;
+    sd_cad_rolled_back_model=NULL;
+    sh_cut_rolled_back_no_material=0;
     double before_thickness=0;
-    if(smart_sketch_can_check(&command,&request_snapshot)||
-       smart_smt_cut_capture(&command,&request_snapshot,&before_thickness))
+    SmartCadEvidence evidence=smart_cad_capture(&command,&request_snapshot);
+    if(evidence.track)before=evidence.signature;
+    else if(smart_sketch_can_check(&command,&request_snapshot)||
+            smart_smt_cut_capture(&command,&request_snapshot,&before_thickness))
         before=smart_part_signature(request_snapshot.model);
     bwtl_warn_traceback(&command);
     ProError error=part_execute(&command,&request_snapshot,result,PART_TEXT_MAX);
+    PartText feedback={result,_countof(result),0};
+    int checked_recovery=error&&error!=PRO_TK_USER_ABORT&&!smart_unsafe_receipt(result)&&
+        smart_cad_recovered(&command,&request_snapshot,&evidence,error);
+    if(checked_recovery){
+        PartCommand alternative={0};
+        if(smart_cad_cut_alternative(&command,&request_snapshot,error,&evidence,&alternative)&&
+           smart_protocol_allowed(&alternative)){
+            static PartSnapshot fresh;
+            if(!part_snapshot_take_mode(request_snapshot.model,&fresh,0)){
+                static wchar_t original[1800],replacement[PART_TEXT_MAX];
+                wcsncpy_s(original,_countof(original),result,_TRUNCATE);
+                smart_protocol_remember(&command,error);
+                smart_stage_failed(SMART_STAGE_WRITE);
+                smart_describe_failure(&command,result,smart_last_failure_brief,_countof(smart_last_failure_brief));
+                const wchar_t *prior_direction=!wcscmp(command.arg[4],L"POS")?L"POS":L"NEG";
+                command=alternative;
+                error=part_execute(&command,&fresh,replacement,PART_TEXT_MAX);
+                const int restored=error&&error!=PRO_TK_USER_ABORT&&!smart_unsafe_receipt(replacement)&&
+                    smart_cad_recovered(&command,&fresh,&evidence,error);
+                result[0]=0;
+                part_text_add(&feedback,L"第一次 %ls 切向未切掉板料，原件已复核。已用同一闭合草绘和相同尺寸尝试 %ls 切向。\n%ls",
+                    prior_direction,command.arg[4],replacement);
+                if(error)part_text_add(&feedback,L"\n第一次原生回执：%.1200ls",original);
+                checked_recovery=restored;
+            }
+            part_snapshot_clear(&fresh);
+        }
+    }
+    if(error&&four_holes){
+        PartCommand alternative={0};
+        double width,height;
+        if(smart_four_alternative(&command,&request_snapshot,error,result,&alternative,&width,&height)&&
+           smart_protocol_allowed(&alternative)&&!smart_protocol_seen(&alternative)){
+            static wchar_t replacement[PART_TEXT_MAX];
+            const double original_x=as_arg(&command,3),original_y=as_arg(&command,4);
+            smart_protocol_remember(&command,error);
+            smart_stage_failed(SMART_STAGE_WRITE);
+            command=alternative;
+            error=part_execute(&command,&request_snapshot,replacement,_countof(replacement));
+            result[0]=0;
+            part_text_add(&feedback,L"原孔距 %g × %g mm 未通过板材校验。"
+                L"已按实测 %.8g × %.8g mm 板面检查板边、原有开口和完整板厚，"
+                L"改用 %.8g × %.8g mm 的居中孔距并保持孔径不变。\n%ls",
+                original_x,original_y,width,height,as_arg(&command,3),as_arg(&command,4),replacement);
+            trace("BWTL native four-hole pitch replanned",error);
+        }
+    }
+    int readback_failed=0;
+    if(!error&&evidence.track){
+        static wchar_t verification[1700];
+        verification[0]=0;
+        PartText check={verification,_countof(verification),0};
+        error=smart_cad_verify_result(&command,&request_snapshot,&evidence,&check);
+        if(error){
+            swprintf_s(result,_countof(result),L"原生回读未能确认本步验收结果。%ls",verification);
+            readback_failed=1;
+        }else part_text_add(&feedback,L"%ls",verification);
+    }
+    if(checked_recovery&&error&&!smart_local_plan&&!smart_readonly&&smart_intent_writable(smart_intent)){
+        final=0;
+        smart_cad_retry_references(&command,&request_snapshot,&evidence,&feedback);
+    }
+    const int failure_observed=!independent&&!readback_failed&&
+        smart_observe_failed_model_action(&command,&request_snapshot,error,checked_recovery,&feedback);
+    if(failure_observed)final=0;
+    if(evidence.track||failure_observed||(!error&&smart_cad_pending_count&&smart_retryable_model_action(&command)))
+        smart_note_cad_pending(&command,request_snapshot.model,error);
+    if(smart_cad_pending_count&&!smart_local_plan&&!smart_readonly&&smart_intent_writable(smart_intent)&&
+       !independent&&command.verb!=PART_DISPLAY&&quality!=AX_Q_REPORT)final=0;
     trace("PERF native_execute_ms",(int)(GetTickCount64()-execution_started));
+
     if(error&&foundation&&cm_kind(verb)==BWTL_CM_TRAY&&error==PRO_TK_BAD_INPUTS)final=0;
-    int progress=command.verb==PART_COPY&&!error,unsafe=0;
+    int progress=command.verb==PART_COPY&&!error,unsafe=readback_failed;
     if(!independent&&command.verb!=PART_DISPLAY&&request_snapshot.stamp){
         if(error){
             ProMdl target=NULL;
-            unsafe=part_check_binding(&command,&request_snapshot,&target)!=PRO_TK_NO_ERROR;
-            if(!final&&(smart_sketch_rechecked(&command,&request_snapshot,&before,error)||
+            unsafe=unsafe||(!checked_recovery&&part_check_binding(&command,&request_snapshot,&target)!=PRO_TK_NO_ERROR);
+            if(!final&&!readback_failed&&(checked_recovery||smart_sketch_rechecked(&command,&request_snapshot,&before,error)||
                         smart_smt_cut_rechecked(&command,&request_snapshot,&before,before_thickness,error))){
                 target=request_snapshot.model;
                 unsafe=!smart_binding_set(target,request_snapshot.window_model,request_snapshot.directory);
                 if(!unsafe){
                     smart_committed_part=before;
-                    PartText feedback={result,_countof(result),0};
-                    part_text_add(&feedback,L"\n已复核活动零件、工作目录、已有特征和尺寸。保留已完成步骤，从当前零件继续。"
+                    if(!checked_recovery)part_text_add(&feedback,L"\n已复核活动零件、工作目录、已有特征和尺寸。保留已完成步骤，从当前零件继续。"
                         L"根据本轮实测数据选择不同参照或受支持的加工方式，继续尚未完成的操作。");
                 }
             }else if(!unsafe&&!final&&(!smart_readonly||assembly_lookup)){
@@ -173,10 +258,14 @@ static void execute_part_command(void){
                 unsafe=!smart_binding_set(target,request_snapshot.window_model,request_snapshot.directory);
         }
     }
+    if(four_holes&&!error&&progress&&!unsafe){
+        smart_four_verified_target=request_snapshot.model;
+        smart_four_verified_diameter=as_arg(&command,2);
+    }
     if(!error&&progress&&!unsafe&&!final&&request_snapshot.type==PRO_MDL_PART&&
        request_snapshot.model==smart_target_model&&request_snapshot.model==request_snapshot.window_model)
         smart_committed_part=smart_part_signature(request_snapshot.model);
-    if(quality_report_flow&&!unsafe&&smart_binding_valid())smart_target_model=request_snapshot.model;
+    if((quality_report_flow||failure_observed)&&!unsafe&&smart_binding_valid())smart_target_model=request_snapshot.model;
     if(!result[0])swprintf_s(result,_countof(result),L"原生操作 %ls 返回 Creo %d。",verb,error);
     smart_step(&command,verb,error,result,progress,final,unsafe);
 }

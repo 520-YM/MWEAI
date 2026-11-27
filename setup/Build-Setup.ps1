@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [string]$SourceRoot=(Split-Path -Parent $PSScriptRoot),
     [Parameter(Mandatory=$true)][string]$WorkDirectory,
@@ -29,6 +29,7 @@ foreach($name in @('resources','src','docs','setup','compatibility','scripts','V
 }
 Get-ChildItem -LiteralPath (Join-Path $SourceRoot 'tests') -File | Copy-Item -Destination (Join-Path $stage 'tests')
 Copy-Item -LiteralPath $dll -Destination (Join-Path $stage 'bin\BWTL.dll')
+Copy-Item -LiteralPath (Join-Path $SourceRoot 'bin\MWEAI-BackgroundCreo.dll') -Destination (Join-Path $stage 'bin\MWEAI-BackgroundCreo.dll')
 $featureList=Join-Path $SourceRoot 'docs\MWEAI 功能列表.txt'
 if(-not (Test-Path -LiteralPath $featureList -PathType Leaf)){$featureList=Join-Path $SourceRoot 'docs\BWTL 功能列表.txt'}
 Copy-Item -LiteralPath $featureList -Destination (Join-Path $stage 'seed\feature-guide.md')
@@ -52,3 +53,4 @@ if($LASTEXITCODE -ne 0){throw 'Installer compiler failed.'}
 $lines=@($exe,$zip|ForEach-Object {(Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant()+'  '+[IO.Path]::GetFileName($_)})
 [IO.File]::WriteAllLines($checksums,$lines,$utf8)
 [pscustomobject]@{Version=$version;Files=$manifest.Count;Stage=$stage;Setup=$exe;Zip=$zip;Checksums=$checksums}
+

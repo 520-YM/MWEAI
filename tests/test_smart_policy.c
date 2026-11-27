@@ -3,7 +3,48 @@
 #include <stdio.h>
 #include "../src/part_command.h"
 #include "../src/smart_policy.h"
+#include "../src/功能/assistant/request_assessment.inc"
+
+static void check_request_assessment(void){
+    RequestAssessment result=request_assess(L"新建一个零件，图号M26A1481001V00",0);
+    assert(result.route==REQUEST_NATIVE&&result.execution_requested&&!result.compound);
+    result=request_assess(L"在当前钣金平板上居中打四个通孔，孔径4.2，孔距30×26",0);
+    assert(result.route==REQUEST_NATIVE&&result.execution_requested&&!result.compound);
+    result=request_assess(L"先读取这块板的安装面，然后把孔的直径改到8mm",0);
+    assert(result.route==REQUEST_PLAN&&result.compound&&result.execution_requested&&!result.readonly);
+    result=request_assess(L"创建一个零件并把它保存到当前工作目录",0);
+    assert(result.route==REQUEST_PLAN&&result.compound&&result.execution_requested);
+    result=request_assess(L"测量当前板厚，再把刚才那个改成3mm",0);
+    assert(result.route==REQUEST_PLAN&&result.compound&&result.execution_requested&&result.continuation);
+    result=request_assess(L"先看看为什么四个孔都没打成，再帮我把这四个孔打好",0);
+    assert(result.route==REQUEST_PLAN&&result.compound&&result.execution_requested&&!result.readonly);
+    result=request_assess(L"如果板厚超过2mm就改成2mm，否则保持原样",0);
+    assert(result.route==REQUEST_PLAN&&result.ambiguous&&!result.readonly);
+    result=request_assess(L"为什么没给这块板打孔？只回答我",0);
+    assert(result.route==REQUEST_PLAN&&result.readonly&&!result.execution_requested);
+    result=request_assess(L"报告显示“只分析”，现在帮我倒角R2",0);
+    assert(result.route==REQUEST_NATIVE&&!result.readonly&&result.execution_requested);
+    result=request_assess(L"打开“E:\\项目\\创建、复制，然后保存.prt”",0);
+    assert(result.route==REQUEST_NATIVE&&result.execution_requested&&!result.compound);
+    result=request_assess(L"写入建模规则：「先核对折弯，然后做展开」",0);
+    assert(result.route==REQUEST_NATIVE&&result.execution_requested&&!result.compound);
+    result=request_assess(L"刚才建的图号是多少？",0);
+    assert(result.route==REQUEST_NATIVE&&result.readonly&&result.continuation);
+    result=request_assess(L"那就帮我改成正确的",0);
+    assert(result.route==REQUEST_NATIVE&&result.execution_requested&&result.continuation);
+    result=request_assess(L"把刚才那个改成正确的",0);
+    assert(result.route==REQUEST_NATIVE&&result.execution_requested&&result.continuation);
+    result=request_assess(L"继续上次任务",0);
+    assert(result.route==REQUEST_NATIVE&&result.execution_requested&&result.continuation);
+    result=request_assess(L"你能不能帮我做一个支架？",0);
+    assert(result.route==REQUEST_NATIVE&&result.execution_requested&&!result.readonly);
+    result=request_assess(L"能不能打孔？我只想确认有没有这个功能",0);
+    assert(result.readonly&&!result.execution_requested);
+    result=request_assess(L"帮我分析这张图",1);
+    assert(result.route==REQUEST_PLAN&&result.readonly);
+}
 int main(void){
+    check_request_assessment();
     PartCommand c;wchar_t text[1000];
     assert(smart_analysis_request(L"只分析这个零件怎么开孔，不执行"));
     assert(smart_analysis_request(L"帮我分析这张图的圆角"));

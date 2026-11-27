@@ -3,6 +3,7 @@
 
 static ProMdl model;
 static int features[6];
+static MarkupHole native_holes[6];
 static FILE *receipt;
 static ULONGLONG deadline;
 static int queued,phase;
@@ -51,10 +52,22 @@ static void export_bitmap(const MarkupImage *image){
     fclose(out);
 }
 
+static RECT child_bounds(HWND control){
+    RECT bounds={0};
+    GetWindowRect(control,&bounds);
+    MapWindowPoints(HWND_DESKTOP,markup_window,(POINT *)&bounds,2);
+    return bounds;
+}
+
+static int inside(const RECT *client,const RECT *child){
+    return child->left>=0&&child->top>=0&&child->right<=client->right&&child->bottom<=client->bottom&&
+        child->right>child->left&&child->bottom>child->top;
+}
+
 static int check(uiCmdCmdId id,uiCmdValue *value,void *data){
     queued=0;
     if(GetTickCount64()>deadline){fprintf(receipt,"TIMEOUT_PHASE=%d\n",phase);done(0);return 0;}
-    if(phase==1&&markup_window&&markup_capture.image){
+    if(phase==1&&markup_window&&IsWindowVisible(markup_window)&&markup_capture.image){
         MarkupImage *image=markup_capture.image;
         RECT full;
         HWND creo=markup_creo_window();
@@ -68,33 +81,38 @@ static int check(uiCmdCmdId id,uiCmdValue *value,void *data){
             if(!MoveWindow(markup_window,0,0,MulDiv(sizes[i].cx,native_dpi,96),MulDiv(sizes[i].cy,native_dpi,96),TRUE)){
                 done(0);return 0;
             }
-            RECT client,image_rect,tools,management,submit,circle,box,undo,send,input;
+            RECT client,overlap;
             GetClientRect(markup_window,&client);
-            GetWindowRect(markup_canvas,&image_rect);
-            int padding=MulDiv(12,native_dpi,96);
-            resized=resized&&image_rect.right-image_rect.left==client.right-2*padding&&
-                image_rect.bottom-image_rect.top==client.bottom-MulDiv(175,native_dpi,96);
-            grouped=grouped&&GetWindowRect(GetDlgItem(markup_window,MARKUP_TOOLS_LABEL),&tools)&&
-                GetWindowRect(GetDlgItem(markup_window,MARKUP_MANAGEMENT_LABEL),&management)&&
-                GetWindowRect(GetDlgItem(markup_window,MARKUP_SUBMIT_LABEL),&submit)&&
-                GetWindowRect(markup_tools[0],&circle)&&GetWindowRect(markup_tools[2],&box)&&
-                GetWindowRect(GetDlgItem(markup_window,MARKUP_UNDO),&undo)&&
-                GetWindowRect(markup_send,&send)&&GetWindowRect(markup_input,&input)&&
-                tools.bottom<=circle.top&&tools.left==circle.left&&
-                management.bottom<=undo.top&&management.left==undo.left&&box.right<undo.left&&
-                undo.bottom<image_rect.top&&image_rect.bottom<input.top&&input.bottom<submit.top&&
-                submit.bottom<=send.top&&submit.left==send.left;
+            RECT canvas=child_bounds(markup_canvas),input=child_bounds(markup_input);
+            RECT send=child_bounds(markup_send),status=child_bounds(markup_status);
+            RECT context=child_bounds(GetDlgItem(markup_window,MARKUP_CONTEXT));
+            RECT check=child_bounds(GetDlgItem(markup_window,MARKUP_CHECK));
+            resized=resized&&inside(&client,&canvas)&&inside(&client,&input)&&inside(&client,&send)&&inside(&client,&status);
+            grouped=grouped&&context.bottom<canvas.top&&!IntersectRect(&overlap,&canvas,&input)&&
+                !IntersectRect(&overlap,&canvas,&status)&&!IntersectRect(&overlap,&check,&send)&&send.top>=input.bottom&&
+                (i==1?canvas.bottom<input.top:canvas.right<input.left);
         }
-        fprintf(receipt,"RESIZED=%d GROUPED=%d\n",resized,grouped);
-        if(!resized||!grouped){done(0);return 0;}
+        RECT normal=markup_image_rect(markup_canvas),canvas_before=child_bounds(markup_canvas);
+        SendMessageW(markup_window,WM_COMMAND,MARKUP_ZOOM_IN,0);
+        RECT expanded=markup_image_rect(markup_canvas);
+        SendMessageW(markup_window,WM_COMMAND,MARKUP_FIT,0);
+        RECT reset=markup_image_rect(markup_canvas);
+        int zoom=expanded.right-expanded.left>normal.right-normal.left&&EqualRect(&normal,&reset);
+        SendMessageW(markup_window,WM_COMMAND,MARKUP_PANEL,0);
+        RECT collapsed=child_bounds(markup_canvas);
+        int panel=collapsed.right>canvas_before.right&&!IsWindowVisible(markup_input);
+        SendMessageW(markup_window,WM_COMMAND,MARKUP_PANEL,0);
+        panel=panel&&IsWindowVisible(markup_input);
+        fprintf(receipt,"RESIZED=%d GROUPED=%d ZOOM_FIT=%d COLLAPSIBLE_PANEL=%d\n",resized,grouped,zoom,panel);
+        if(!resized||!grouped||!zoom||!panel){done(0);return 0;}
         mark_at(image,image->holes[0].x,image->holes[0].y,MARKUP_TOOL_CIRCLE);
         SetWindowTextW(markup_input,L"这个孔改 Ø5");
         wchar_t feedback[256];
-        GetWindowTextW(markup_status,feedback,_countof(feedback));
+        GetWindowTextW(markup_summary,feedback,_countof(feedback));
         int circle=markup_count==1&&wcsstr(feedback,L"Ø4 → Ø5 mm")&&check_diameter(image->holes[0].feature,4);
         SendMessageW(markup_window,WM_COMMAND,MARKUP_UNDO,0);
         mark_at(image,image->holes[0].x,image->holes[0].y,MARKUP_TOOL_BOX);
-        GetWindowTextW(markup_status,feedback,_countof(feedback));
+        GetWindowTextW(markup_summary,feedback,_countof(feedback));
         int box=markup_count==1&&wcsstr(feedback,L"Ø4 → Ø5 mm");
         SendMessageW(markup_window,WM_COMMAND,MARKUP_CLEAR,0);
         fprintf(receipt,"CIRCLE_PREVIEW=%d BOX_PREVIEW=%d CLEAR=%d\n",circle,box,markup_count==0);
@@ -122,10 +140,11 @@ static int check(uiCmdCmdId id,uiCmdValue *value,void *data){
         PostMessageW(markup_window,WM_COMMAND,MARKUP_SEND,0);
         return 0;
     }
-    if(phase==3&&markup_window&&markup_display&&markup_capture.image&&!markup_retake&&markup_display->ticket==markup_capture.image->ticket){
+    if(phase==3&&markup_window&&IsWindowVisible(markup_window)&&markup_display&&markup_capture.image&&!markup_retake&&markup_display->ticket==markup_capture.image->ticket){
         MarkupImage *image=markup_capture.image;
         mark_at(image,image->holes[0].x,image->holes[0].y,MARKUP_TOOL_ARROW);
         mark_at(image,110,110,MARKUP_TOOL_ARROW);
+        if(markup_count!=2){fprintf(receipt,"AFTER_RECAPTURE_MARKS=%d\n",markup_count);done(0);return 0;}
         SetWindowTextW(markup_input,L"1号 Ø7；2号 Ø9");
         phase=4;
         PostMessageW(markup_window,WM_COMMAND,MARKUP_SEND,0);
@@ -144,7 +163,7 @@ static int check(uiCmdCmdId id,uiCmdValue *value,void *data){
         for(int i=0;i<image->count;i++)if(image->holes[i].feature==features[5])
             mark_at(image,image->holes[i].x,image->holes[i].y,MARKUP_TOOL_CIRCLE);
         SetWindowTextW(markup_input,L"这个孔改 Ø5");
-        GetWindowTextW(markup_status,status,_countof(status));
+        GetWindowTextW(markup_summary,status,_countof(status));
         int located=markup_count==1&&wcsstr(status,L"Ø4 → Ø5 mm")!=NULL;
         fprintf(receipt,"SINGLE_CIRCLE_TARGET=%d\n",located);
         if(!located){done(0);return 0;}
@@ -153,6 +172,7 @@ static int check(uiCmdCmdId id,uiCmdValue *value,void *data){
         if(!markup_waiting){fprintf(receipt,"SINGLE_CIRCLE_SUBMITTED=0\n");done(0);}
         return 0;
     }
+
     if(phase==5&&!markup_waiting){
         wchar_t status[1000];
         GetWindowTextW(markup_status,status,_countof(status));
@@ -160,8 +180,89 @@ static int check(uiCmdCmdId id,uiCmdValue *value,void *data){
         int pass=markup_retake&&check_diameter(features[5],5)&&wcsstr(status,L"Ø4 → 5 mm");
         for(int i=0;i<5;i++)pass=pass&&check_diameter(features[i],8);
         fprintf(receipt,"SINGLE_CIRCLE_EDIT_AND_READBACK=%d\n",pass);
+        if(!pass){done(0);return 0;}
+        SetWindowTextW(markup_input,L"刚才这个孔再大 1 mm");
+        GetWindowTextW(markup_send,status,_countof(status));
+        int continues=!wcscmp(status,L"继续改图");
+        fprintf(receipt,"CONTINUE_BUTTON=%d\n",continues);
+        if(!continues){done(0);return 0;}
+        phase=51;
+        PostMessageW(markup_window,WM_COMMAND,MARKUP_SEND,0);
+        return 0;
+    }
+    if(phase==51&&!markup_waiting&&markup_retake&&check_diameter(features[5],6)){
+        wchar_t status[1000];
+        GetWindowTextW(markup_status,status,_countof(status));
+        int pass=wcsstr(status,L"Ø5 → 6 mm")!=NULL&&!markup_ai.process&&markup_count==0;
+        for(int i=0;i<5;i++)pass=pass&&check_diameter(features[i],8);
+        fprintf(receipt,"FOLLOWUP_RETAKES_AND_WRITES_WITHOUT_REMARK=%d\n",pass);
+        if(!pass){done(0);return 0;}
+        phase=6;
+        PostMessageW(markup_window,WM_COMMAND,MARKUP_SEND,0);
+        return 0;
+    }
+    if(phase==6&&markup_window&&IsWindowVisible(markup_window)&&markup_display&&markup_capture.image&&!markup_retake&&markup_display->ticket==markup_capture.image->ticket){
+        MarkupImage *image=markup_capture.image;
+        const MarkupHole *row[3]={0};
+        for(int i=0;i<image->count;i++)for(int j=0;j<3;j++)
+            if(image->holes[i].feature==features[j])row[j]=&image->holes[i];
+        if(!row[0]||!row[1]||!row[2]){done(0);return 0;}
+        double low_x=HUGE_VAL,high_x=-HUGE_VAL,low_y=HUGE_VAL,high_y=-HUGE_VAL;
+        for(int i=0;i<3;i++){
+            low_x=fmin(low_x,row[i]->x);high_x=fmax(high_x,row[i]->x);
+            low_y=fmin(low_y,row[i]->y);high_y=fmax(high_y,row[i]->y);
+        }
+        const RECT r=markup_image_rect(markup_canvas);
+        int left=r.left+(int)lround((low_x-12)*(r.right-r.left)/image->width);
+        int right=r.left+(int)lround((high_x+12)*(r.right-r.left)/image->width);
+        int top=r.top+(int)lround((low_y-12)*(r.bottom-r.top)/image->height);
+        int bottom=r.top+(int)lround((high_y+12)*(r.bottom-r.top)/image->height);
+        SendMessageW(markup_window,WM_COMMAND,MARKUP_TOOL_BOX,0);
+        SendMessageW(markup_canvas,WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(left,top));
+        SendMessageW(markup_canvas,WM_MOUSEMOVE,MK_LBUTTON,MAKELPARAM(right,bottom));
+        SendMessageW(markup_canvas,WM_LBUTTONUP,0,MAKELPARAM(right,bottom));
+        mark_at(image,row[0]->x,row[0]->y,MARKUP_TOOL_ARROW);
+        if(markup_count!=2){done(0);return 0;}
+        for(int i=0;i<6;i++){
+            int ordinal=0;
+            while(ordinal<image->count&&image->holes[ordinal].feature!=features[i])ordinal++;
+            if(ordinal==image->count){done(0);return 0;}
+            native_holes[i]=image->holes[ordinal];
+        }
+        SetWindowTextW(markup_input,L"把圈出的四个孔都改成 Ø6");
+        phase=7;
+        PostMessageW(markup_window,WM_COMMAND,MARKUP_SEND,0);
+        return 0;
+    }
+    if(phase==7&&!markup_waiting){
+        wchar_t status[1000];
+        GetWindowTextW(markup_status,status,_countof(status));
+        if(!wcsstr(status,L"实际核对到 3 个"))return 0;
+        int pass=markup_count==2&&!markup_retake&&!markup_ai.process;
+        for(int i=0;i<6;i++)pass=pass&&!markup_bore_read(model,&native_holes[i],i==5?6:8);
+        fprintf(receipt,"MISMATCHED_QUANTITY_KEPT_BOTH_MARKS_NO_WRITE=%d\n",pass);
+        if(!pass){done(0);return 0;}
+        SetWindowTextW(markup_input,L"把圈出的三个孔都改成 Ø6");
+        phase=8;
+        PostMessageW(markup_window,WM_COMMAND,MARKUP_SEND,0);
+        return 0;
+    }
+    if(phase==8&&!markup_waiting){
+        wchar_t status[1000];
+        GetWindowTextW(markup_status,status,_countof(status));
+        if(wcsstr(status,L"正在处理你的要求"))return 0;
+        int pass=markup_count==2&&markup_retake&&!markup_ai.process&&wcsstr(status,L"已修改 3 处");
+        for(int i=0;i<6;i++){
+            double diameter=i<3?6:i==5?6:8;
+            int check=!markup_bore_read(model,&native_holes[i],diameter)&&check_diameter(features[i],diameter);
+            fprintf(receipt,"SITE_%d_NATIVE_FEATURE_%d_SURFACE_%d_EXPECTED_%.1f=%d\n",
+                i+1,features[i],native_holes[i].surface,diameter,check);
+            pass=pass&&check;
+        }
+        fprintf(receipt,"NATURAL_GROUP_BOX_PLUS_OVERLAPPING_ARROW=%d\n",pass);
         done(pass);
     }
+
     return 0;
 }
 
@@ -176,7 +277,7 @@ static int open_markup_test(uiCmdCmdId id,uiCmdValue *value,void *data){
     fprintf(receipt,"MENU=%d\n",menu);
     if(!menu||!SetTimer(native_backend_window,9008,250,test_timer)){done(0);return 0;}
     phase=1;
-    deadline=GetTickCount64()+30000;
+    deadline=GetTickCount64()+45000;
     PostMessageW(native_window,WM_COMMAND,CHAT_RESERVED_3,0);
     return 0;
 }

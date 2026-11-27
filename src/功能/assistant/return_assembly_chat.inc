@@ -2,16 +2,19 @@
 static int return_assembly_waiting,return_assembly_continue_task;
 
 static int return_assembly_request(const wchar_t *text,ProMdlName name){
-    static const wchar_t *const commands[]={
-        L"放回到装配体",L"放回到装配",L"放回装配体",L"放回装配",
-        L"回到原来的装配",L"回到父装配",L"回到原装配",L"回到装配体",L"回到装配",
-        L"返回到父装配",L"返回原装配",L"返回父装配",L"返回装配窗口",L"返回装配体",L"返回装配",
-        L"切回父装配",L"切回原装配",L"切回装配窗口",L"切回装配体",L"切回装配"
+    static const struct {const wchar_t *text;int sole_window;} commands[]={
+        {L"放回到装配体",0},{L"放回到装配",0},{L"放回装配体",0},{L"放回装配",0},
+        {L"回到原来的装配",0},{L"回到父装配",0},{L"回到原装配",0},
+        {L"回到装配体",1},{L"回到装配",1},{L"回到总装配",1},{L"回到总装",1},{L"回总装",1},
+        {L"返回到父装配",0},{L"返回原装配",0},{L"返回父装配",0},
+        {L"返回装配窗口",1},{L"返回装配体",1},{L"返回装配",1},{L"返回总装",1},
+        {L"切回父装配",0},{L"切回原装配",0},{L"切回装配窗口",1},{L"切回装配体",1},
+        {L"切回装配",1},{L"切回总装",1}
     };
     const wchar_t *tail=model_request_action_start(text);
     size_t i;
     for(i=0;i<_countof(commands);i++){
-        if(assembly_take(&tail,commands[i]))break;
+        if(assembly_take(&tail,commands[i].text))break;
     }
     if(i==_countof(commands))return 0;
     while(*tail&&(iswspace(*tail)||wcschr(L"，,：:",*tail)))tail++;
@@ -29,11 +32,12 @@ static int return_assembly_request(const wchar_t *text,ProMdlName name){
         if(length==4)return 0;
         length-=4;
     }
-    if(!length){name[0]=0;return 1;}
+    if(!length){name[0]=0;return commands[i].sole_window?2:1;}
     return length<=31&&!wcsncpy_s(name,PRO_NAME_SIZE,tail,length)&&model_assembly_name_valid(name);
 }
 
 static void return_assembly_cancel(void){
+    session_window_cancel();
     if(!return_assembly_waiting)return;
     return_assembly_waiting=return_assembly_continue_task=0;
     ax_return_cancel();
@@ -85,7 +89,8 @@ static void return_assembly_start_task(void){
 
 static int return_assembly_chat(const wchar_t *text){
     ProMdlName requested;
-    if(!return_assembly_request(text,requested))return 0;
+    const int request=return_assembly_request(text,requested);
+    if(!request)return 0;
     if(native_busy||smart_active||ai_process){append(L"请等当前操作结束后再切换装配窗口。");return 1;}
     smart_begin(text);
     smart_local_plan=1;
@@ -95,6 +100,16 @@ static int return_assembly_chat(const wchar_t *text){
     wchar_t receipt[1800]=L"";
     PartText out={receipt,_countof(receipt),0};
     ProError error=ax_return_parent(requested,&out);
+    if(error==PRO_TK_E_NOT_FOUND&&request==2){
+        ProMdl source=NULL;
+        ProMdlType type;
+        if(!ProMdlCurrentGet(&source)&&!ProMdlTypeGet(source,&type)&&type==PRO_MDL_PART){
+            AxSessionSelector target;
+            receipt[0]=0;
+            error=ax_session_unique_open_assembly(&target,&out);
+            if(!error){error=session_window_start(&target,0,&out);if(!error)return 1;}
+        }
+    }
     if(!error){
         return_assembly_waiting=1;
         error=ProMacroLoad(L"~ Command \x0060" L"BWTLReturnAssemblyConfirm\x0060;");

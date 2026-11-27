@@ -49,6 +49,7 @@ static void chat_prompt_latest(FILE *out,int compact){
     const wchar_t *latest=smart_latest_request[0]?smart_latest_request:smart_goal;
     chat_prompt_conversation(out,conversation,latest,compact);
     chat_prompt_task_evidence(out);
+    chat_prompt_task_target(out);
     fwprintf(out,L"\n解析最新消息中的「刚才那个」「继续」「按刚才方案」「改成」等承接表达时，"
         L"优先看最近一次相关问答与实际 Creo 回执。已给出的对象、数值和约束直接沿用；"
         L"新要求覆盖同一项旧条件；先核对当前 Creo 目标。有更近的客观回执时以它为准。"
@@ -62,7 +63,9 @@ static void chat_prompt_latest(FILE *out,int compact){
 
 static int chat_intent_needs_review(int mode){
     if(mode!=SMART_INTENT_READ&&mode!=SMART_INTENT_CHAT)return 0;
-    if(smart_explicit_readonly(smart_latest_request))return 0;
+    const RequestAssessment assessment=request_assess(smart_latest_request,request_attachment_turn);
+    if(assessment.readonly||smart_explicit_readonly(smart_latest_request))return 0;
+    if(assessment.execution_requested&&(assessment.compound||assessment.continuation))return 1;
     static const wchar_t *const corrections[]={L"我叫你画",L"叫你画一个",L"我是让你执行",L"我叫你执行"};
     return smart_explicit_modeling_request(smart_latest_request)||
         smart_followup_execution_request(smart_latest_request)||

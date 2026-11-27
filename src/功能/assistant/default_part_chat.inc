@@ -1,12 +1,15 @@
 /* Retain only verified models belonging to an unfinished local workflow.
    A continuation rechecks the same handles, component ID and directory. */
 enum { DEFAULT_PART_IDLE, DEFAULT_PART_WAIT_PARENT, DEFAULT_PART_WAIT_CHILD, DEFAULT_PART_WAIT_SINGLE };
+typedef ProError (*DefaultPartReady)(ProMdl part,ProMdl assembly,PartText *receipt);
 static struct {
     int phase,scope,kind,component_id,window,window_retry;
+    DefaultPartReady ready;
     ULONGLONG turn_started;
     ProMdl parent,part;
     ProMdlName parent_name,part_name,requested_child;
     ProPath directory,staging,parent_origin,part_origin;
+    wchar_t numbering[600];
 } default_part;
 
 static void default_part_end_transition(void){
@@ -28,7 +31,15 @@ static int default_part_stop(void){
     return 1;
 }
 
+#ifdef BWTL_LOCAL_CONTROL_WORKFLOWS
+static void panel_flow_pair_error(ProError error);
+static int panel_flow_after_pair(ProMdl part,ProMdl parent,ProError error,const wchar_t *receipt);
+#endif
+
 static void default_part_fail(int step,ProError error,const wchar_t *reason){
+#ifdef BWTL_LOCAL_CONTROL_WORKFLOWS
+    panel_flow_pair_error(error);
+#endif
     wchar_t message[1850];
     const int retained=default_part.parent||default_part.part;
     if(default_part.scope==MODELING_PART_CURRENT&&step>1)step--;
@@ -168,23 +179,46 @@ static ProError default_part_verify_component(void){
 }
 
 static void default_part_success(void){
-    wchar_t reply[800];
+    wchar_t reply[7600]=L"";
+    PartText receipt={reply,_countof(reply),0};
     const wchar_t *kind=default_part.kind==2?L"钣金":L"实体";
     if(default_part.scope==MODELING_PART_SINGLE)
-        swprintf_s(reply,_countof(reply),L"已单独创建空%ls零件 %ls.PRT，并打开该零件窗口。尚未保存到项目目录。",kind,default_part.part_name);
+        part_text_add(&receipt,L"已单独创建空%ls零件 %ls.PRT，并打开该零件窗口。尚未保存到项目目录。\n",kind,default_part.part_name);
     else if(default_part.scope==MODELING_PART_CURRENT)
-        swprintf_s(reply,_countof(reply),L"已在当前装配 %ls.ASM 中以 Creo 默认定位新建空%ls零件 %ls.PRT（组件 ID:%d），并打开该零件窗口。尚未保存到项目目录。",
+        part_text_add(&receipt,L"已在当前装配 %ls.ASM 中以 Creo 默认定位新建空%ls零件 %ls.PRT（组件 ID:%d），并打开该零件窗口。尚未保存到项目目录。\n",
             default_part.parent_name,kind,default_part.part_name,default_part.component_id);
     else
-        swprintf_s(reply,_countof(reply),L"已创建装配 %ls.ASM，以 Creo 默认定位装入同名空钣金件 %ls.PRT（组件 ID:%d），并打开钣金件窗口。尚未保存到项目目录。",
+        part_text_add(&receipt,L"已创建同图号装配 %ls.ASM，以 Creo 默认定位装入空钣金件 %ls.PRT（组件 ID:%d），并打开钣金件窗口。尚未保存到项目目录。\n",
             default_part.parent_name,default_part.part_name,default_part.component_id);
+    if(default_part.numbering[0])part_text_add(&receipt,L"%ls",default_part.numbering);
     smart_steps=default_part.scope==MODELING_PART_NEW?3:default_part.scope==MODELING_PART_CURRENT?2:1;
     smart_progress=default_part.scope==MODELING_PART_NEW?2:1;
+    DefaultPartReady continuation=default_part.ready;
+    ProMdl part=default_part.part,parent=default_part.parent;
+    ProError followup=PRO_TK_NO_ERROR;
+    if(continuation){
+        /* Shape creation runs only after native window and placement checks
+           passed for these exact model handles. */
+        default_part.ready=NULL;
+        followup=continuation(part,parent,&receipt);
+        smart_steps++;
+        if(followup){
+            smart_failures++;
+            part_text_add(&receipt,L"\n后续建模未完成（Creo %d）。上面已核对的模型和装配位置已保留。\n",followup);
+        }else smart_progress++;
+    }
+    if(default_part.scope==MODELING_PART_NEW)
+        chat_task_record_pair(parent,part,default_part.component_id,reply);
+    else chat_task_record_target(part,L"新建零件",PRO_TK_NO_ERROR,reply,0);
+    if(followup)chat_task_record_target(part,L"后续建模",followup,reply,
+        ax_recovery_uncertain||cm_recovery_uncertain||sh_recovery_uncertain||smart_unsafe_receipt(reply));
     smart_record_tool(reply);
     default_part_cancel();
+#ifdef BWTL_LOCAL_CONTROL_WORKFLOWS
+    if(panel_flow_after_pair(part,parent,followup,reply))return;
+#endif
     smart_reply(reply);
 }
-
 static void default_part_open_child(void){
     ProError error=default_part_verify_component();
     if(error){
@@ -426,9 +460,10 @@ static void default_part_create_model(ProMdlName name,int paired){
     default_part_start_or_resume();
 }
 
-static int default_part_chat(const wchar_t *text){
-    ModelingPartIntent request={0};
-    if(!modeling_part_parse(text,&request))return 0;
+static int default_part_begin_request(const wchar_t *text,const ModelingPartIntent *input,DefaultPartReady ready){
+    if(!text||!input||input->scope<MODELING_PART_NEW||input->scope>MODELING_PART_CURRENT||
+       input->kind<0||input->kind>2)return 0;
+    ModelingPartIntent request=*input;
     if(native_busy||smart_active||ai_process){append(L"请等待当前任务完成。");return 1;}
     default_part_begin_turn(text);
     if(request.invalid){
@@ -474,10 +509,26 @@ static int default_part_chat(const wchar_t *text){
         }
     }
     const int paired=scope==MODELING_PART_NEW;
+    wchar_t numbering[600]=L"";
     const int kind=request.kind?request.kind:scope==MODELING_PART_SINGLE?1:2;
     if(scope!=MODELING_PART_CURRENT||name[0]||request.revision[0]){
         const wchar_t *revision=request.revision[0]?request.revision:rules.current.revision;
-        ProError error=name[0]?default_part_name_available(name,paired):default_part_auto_name(name,paired,kind,revision);
+        ProError error=PRO_TK_NOT_EXIST;
+        if(paired&&!name[0]){
+            numbering[0]=0;
+            PartText note={numbering,_countof(numbering),0};
+            error=company_pair_number_for_creation(&request,revision,name,&note);
+            if(error==PRO_TK_NOT_EXIST&&request.require_company_number){
+                smart_reply(L"当前项目还没有可核对的公司总装图号，缺的是工程已分配的年度流水。请指定总装图号后我会自动查结构序号。");
+                return 1;
+            }
+            if(error&&error!=PRO_TK_NOT_EXIST){
+                smart_reply(numbering[0]?numbering:L"未能核对公司图号，尚未创建模型。");
+                return 1;
+            }
+        }
+        if(error==PRO_TK_NOT_EXIST)
+            error=name[0]?default_part_name_available(name,paired):default_part_auto_name(name,paired,kind,revision);
         if(error){
             wchar_t message[380];
             if(error==PRO_TK_E_FOUND)
@@ -489,8 +540,10 @@ static int default_part_chat(const wchar_t *text){
     }
     default_part_cancel();
     default_part.turn_started=smart_started;
+    default_part.ready=ready;
     default_part.scope=scope;
     default_part.kind=kind;
+    wcscpy_s(default_part.numbering,_countof(default_part.numbering),numbering);
     wcscpy_s(default_part.directory,PRO_PATH_SIZE,directory);
     if(scope==MODELING_PART_CURRENT){
         default_part.parent=current;
@@ -500,4 +553,9 @@ static int default_part_chat(const wchar_t *text){
         default_part_build_child();
     }else default_part_create_model(name,paired);
     return 1;
+}
+
+static int default_part_chat(const wchar_t *text){
+    ModelingPartIntent request={0};
+    return modeling_part_parse(text,&request)?default_part_begin_request(text,&request,NULL):0;
 }

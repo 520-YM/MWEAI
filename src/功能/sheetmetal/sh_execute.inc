@@ -1,7 +1,13 @@
 static ProMdl sh_cut_rolled_back_model;
 static ProError sh_cut_rolled_back_error;
+static int sh_cut_rolled_back_no_material;
+static ProMdl sh_cad_rolled_back_model;
+static ProError sh_cad_rolled_back_error;
+static int sh_cad_rolled_back_kind;
 
 static ProError sh_execute(const PartCommand *cmd,ProMdl model,wchar_t *report,size_t capacity){
+    sh_cut_rolled_back_no_material=0;
+    sh_cad_rolled_back_model=NULL;
     int k=sh_kind(cmd->arg[0]),bodies=0;FdTxn tx={0};ProError e;ProMdlsubtype subtype,original_subtype;ProMassProperty mass;
     ProFeattype type=k==SH_SKETCH?PRO_FEAT_CURVE:k==SH_FLANGE||k==SH_HEM?PRO_FEAT_WALL:k==SH_BEND?PRO_FEAT_BEND:k==SH_UNBEND?PRO_FEAT_UNBEND:k==SH_REBEND?PRO_FEAT_BEND_BACK:k==SH_RELIEF?PRO_FEAT_EDIT_BEND_RELIEF:k==SH_CUT?PRO_FEAT_CUT:k==SH_FORM?PRO_FEAT_SMT_SKETCH_FORM:PRO_FEAT_DATUM_SURF;
     if(sheetmetal_plan_valid(cmd->count,(wchar_t (*)[PART_TOKEN_MAX])cmd->arg)!=1)return PRO_TK_BAD_INPUTS;
@@ -43,7 +49,8 @@ static ProError sh_execute(const PartCommand *cmd,ProMdl model,wchar_t *report,s
     else swprintf_s(report,capacity,L"钣金特征 %ls 已创建，原生钣金类型、重生成和实体检查通过，未保存。",tx.name);
 done:
     if(e&&tx.errors.error_list)for(int i=0;i<tx.errors.error_number&&i<32;i++){trace("sheetmetal element id",tx.errors.error_list[i].err_item_id);trace("sheetmetal element error",tx.errors.error_list[i].error);}
-    int cut_rollback_tested=e&&k==SH_CUT&&tx.root&&tx.before_count&&bodies==1&&tx.has_volume;
+    const int cad_rollback_tested=e&&tx.root&&tx.before_count&&(k==SH_SKETCH||k==SH_FIRST||k==SH_CUT);
+    const int cut_rollback_tested=cad_rollback_tested&&k==SH_CUT&&bodies==1&&tx.has_volume;
     am_finish(&tx,e,bodies,report,capacity);
     if(e&&!verification[0]&&k==SH_CUT){
         const wchar_t *cause=!strcmp(tx.stage,"create native sheetmetal normal cut")?
@@ -54,11 +61,21 @@ done:
         swprintf_s(verification,_countof(verification),L"%ls（草绘 %ls，方向 %ls）",cause,cmd->arg[3]+7,cmd->arg[4]);
     }
     if(e&&(ProMdlSubtypeGet(model,&subtype)||subtype!=original_subtype))tx.rollback_ok=0;
+    if(cad_rollback_tested&&tx.rollback_ok){
+        sh_cad_rolled_back_model=model;
+        sh_cad_rolled_back_error=e;
+        sh_cad_rolled_back_kind=k;
+    }
     if(cut_rollback_tested&&tx.rollback_ok){
         sh_cut_rolled_back_model=model;
         sh_cut_rolled_back_error=e;
+        sh_cut_rolled_back_no_material=!strcmp(tx.stage,"sheet verification cut removed no material");
     }
     if(e&&!tx.rollback_ok){sh_recovery_uncertain=1;wcscpy_s(report,capacity,L"本次钣金操作失败，恢复状态未能完整核实。请检查当前模型；该独立会话已停止后续钣金写入。");}
+    if(e&&k==SH_SKETCH&&!verification[0]){
+        PartText explained={report,capacity,0};
+        fd_sketch_failure(&tx,cmd,cmd->arg[3],cmd->arg[4],5,&explained);
+    }
     if(e&&verification[0]){
         PartText explained={report,capacity,0};
         part_text_add(&explained,L"\n失败原因：%ls。",verification);

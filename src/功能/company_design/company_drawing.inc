@@ -25,6 +25,19 @@ static int company_drawing_pdf_valid(const wchar_t *path){
     return valid;
 }
 
+static ProError company_drawing_pdf_write(ProMdl drawing,wchar_t *path){
+    ProPDFOptions options=NULL;
+    ProError error=ProPDFoptionsAlloc(&options);
+    if(!error)error=ProPDFoptionsIntpropertySet(options,PRO_PDFOPT_EXPORT_MODE,PRO_PDF_2D_DRAWING);
+    if(!error)error=ProPDFoptionsIntpropertySet(options,PRO_PDFOPT_SHEETS,PRINT_ALL_SHEETS);
+    if(!error)error=ProPDFoptionsIntpropertySet(options,PRO_PDFOPT_PARAM_MODE,PRO_PDF_PARAMS_NONE);
+    if(!error)error=ProPDFoptionsBoolpropertySet(options,PRO_PDFOPT_LAUNCH_VIEWER,PRO_B_FALSE);
+    if(!error)error=ProPDFExport(drawing,path,options);
+    if(options)ProPDFoptionsFree(options);
+    return error;
+}
+
+
 static ProError company_drawing_export(const wchar_t *expected_name,const wchar_t *out_base,PartText *out){
     static LONG serial;
     ProMdl drawing=NULL;
@@ -76,13 +89,7 @@ static ProError company_drawing_export(const wchar_t *expected_name,const wchar_
        !CreateDirectoryW(stage,NULL))return PRO_TK_CANT_WRITE;
 
 
-    error=ProPDFoptionsAlloc(&options);
-    if(!error)error=ProPDFoptionsIntpropertySet(options,PRO_PDFOPT_EXPORT_MODE,PRO_PDF_2D_DRAWING);
-    if(!error)error=ProPDFoptionsIntpropertySet(options,PRO_PDFOPT_SHEETS,PRINT_ALL_SHEETS);
-    if(!error)error=ProPDFoptionsIntpropertySet(options,PRO_PDFOPT_PARAM_MODE,PRO_PDF_PARAMS_NONE);
-    if(!error)error=ProPDFoptionsBoolpropertySet(options,PRO_PDFOPT_LAUNCH_VIEWER,PRO_B_FALSE);
-    if(!error)error=ProPDFExport(drawing,temporary,options);
-    if(options)ProPDFoptionsFree(options);
+    error=company_drawing_pdf_write(drawing,temporary);
     if(!error&&!company_drawing_pdf_valid(temporary))error=PRO_TK_INCOMPLETE;
     if(!error&&!MoveFileExW(temporary,target,MOVEFILE_WRITE_THROUGH)){
         DWORD move_error=GetLastError();

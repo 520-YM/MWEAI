@@ -1,6 +1,88 @@
 #include <dwmapi.h>
 
+#include <commctrl.h>
+#pragma comment(lib,"comctl32.lib")
+
+static void pk_request_interference(void);
+static void pk_request_dfm(void);
+static void pk_request_price(void);
+static int pk_price_visible(void);
+static int pk_dfm_visible(void);
+static int pk_interference_visible(void);
+static int pk_interference_before_close(void);
+static void native_theme_button(const DRAWITEMSTRUCT *item);
+
+
+static void background_menu(HWND window,HWND button){
+    HMENU menu=CreatePopupMenu();
+    if(!menu)return;
+    AppendMenuW(menu,MF_STRING,1,L"55 寸立式 → 49 寸缩窄版");
+    AppendMenuW(menu,MF_STRING,2,L"查看后台任务");
+    AppendMenuW(menu,MF_STRING,3,L"打开已验收结果");
+    RECT bounds;
+    GetWindowRect(button,&bounds);
+    UINT action=(UINT)TrackPopupMenu(menu,TPM_RETURNCMD|TPM_NONOTIFY,bounds.left,bounds.bottom,0,window,NULL);
+    DestroyMenu(menu);
+    if(!action)return;
+    wchar_t *reference=NULL;
+    if(action==1){
+        wchar_t path[MAX_PATH]=L"";
+        OPENFILENAMEW picker={.lStructSize=sizeof(picker),.hwndOwner=window,
+            .lpstrFilter=L"49 寸参考屏\0" L"49inch.prt.*\0\0",.lpstrFile=path,.nMaxFile=_countof(path),
+            .lpstrTitle=L"选择 E 盘上的 49inch Creo 参考屏",.Flags=OFN_FILEMUSTEXIST|OFN_PATHMUSTEXIST|OFN_NOCHANGEDIR};
+        if(!GetOpenFileNameW(&picker))return;
+        reference=_wcsdup(path);
+        if(!reference)return;
+    }
+    if(!PostMessageW(native_backend_window,WM_APP+184,action,(LPARAM)reference))free(reference);
+}
+
+static LRESULT CALLBACK native_header_tools(HWND window,UINT message,WPARAM w,LPARAM l,UINT_PTR id,DWORD_PTR data){
+    (void)data;
+    HWND interference=native_top_buttons[CHAT_TOP_COLUMNS],dfm=native_top_buttons[CHAT_TOP_COLUMNS+1],price=native_top_buttons[CHAT_TOP_COLUMNS+2];
+    HWND background=native_top_buttons[CHAT_TOP_COLUMNS+3];
+    if(message==WM_SHOWWINDOW&&w&&interference){
+        SetWindowTextW(background,L"后台 Creo");
+        SetWindowLongPtrW(background,GWL_STYLE,GetWindowLongPtrW(background,GWL_STYLE)|WS_TABSTOP);
+        EnableWindow(background,TRUE);
+        SetWindowTextW(native_top_buttons[CHAT_TOP_COLUMNS-1],L"工程图");
+        SetWindowTextW(interference,L"干涉分析");
+        SetWindowLongPtrW(interference,GWL_STYLE,GetWindowLongPtrW(interference,GWL_STYLE)|WS_TABSTOP);
+        EnableWindow(interference,TRUE);
+        SetWindowTextW(dfm,L"钣金DFM");
+        SetWindowLongPtrW(dfm,GWL_STYLE,GetWindowLongPtrW(dfm,GWL_STYLE)|WS_TABSTOP);
+        EnableWindow(dfm,TRUE);
+        SetWindowTextW(price,L"钣金价格");
+        SetWindowLongPtrW(price,GWL_STYLE,GetWindowLongPtrW(price,GWL_STYLE)|WS_TABSTOP);
+        EnableWindow(price,TRUE);
+    }
+    if(message==WM_COMMAND&&HIWORD(w)==BN_CLICKED&&background&&(HWND)l==background){background_menu(window,background);return 0;}
+    if(message==WM_COMMAND&&HIWORD(w)==BN_CLICKED&&interference&&(HWND)l==interference){
+        pk_request_interference();
+        return 0;
+    }
+    if(message==WM_COMMAND&&HIWORD(w)==BN_CLICKED&&dfm&&(HWND)l==dfm){
+        pk_request_dfm();return 0;
+    }
+    if(message==WM_COMMAND&&HIWORD(w)==BN_CLICKED&&price&&(HWND)l==price){
+        pk_request_price();return 0;
+    }
+    if(message==WM_DRAWITEM&&((((const DRAWITEMSTRUCT *)l)->hwndItem==interference&&pk_interference_visible())||
+       (((const DRAWITEMSTRUCT *)l)->hwndItem==dfm&&pk_dfm_visible())||
+       (((const DRAWITEMSTRUCT *)l)->hwndItem==price&&pk_price_visible()))){
+        DRAWITEMSTRUCT styled=*(DRAWITEMSTRUCT *)l;
+        styled.CtlID=CHAT_SEND;
+        native_theme_button(&styled);
+        return TRUE;
+    }
+    if(message==WM_CLOSE&&pk_interference_before_close())return 0;
+    if(message==WM_NCDESTROY)RemoveWindowSubclass(window,native_header_tools,id);
+    return DefSubclassProc(window,message,w,l);
+}
+
 static void native_theme_caption(HWND window){
+    if(window==native_window)SetWindowSubclass(window,native_header_tools,1,0);
+
     typedef HRESULT (WINAPI *SetWindowAttribute)(HWND,DWORD,LPCVOID,DWORD);
     HMODULE module=LoadLibraryExW(L"dwmapi.dll",NULL,LOAD_LIBRARY_SEARCH_SYSTEM32);
     if(!module)return;
@@ -61,7 +143,7 @@ static void native_theme_paint(HWND window,HDC dc){
     RECT rect;
     GetClientRect(window,&rect);
     native_theme_fill(dc,&rect,CHAT_CANVAS_COLOR);
-    int header=MulDiv(84,native_dpi,96);
+    int header=MulDiv(122,native_dpi,96);
     int footer=rect.bottom-MulDiv(49,native_dpi,96);
     RECT top={0,0,rect.right,header};
     RECT rule={0,header-2,rect.right,header};
@@ -71,6 +153,7 @@ static void native_theme_paint(HWND window,HDC dc){
     native_theme_wave(dc,rect.right,header,MulDiv(10,native_dpi,96),RGB(16,82,102));
     native_theme_wave(dc,rect.right,header,MulDiv(35,native_dpi,96),RGB(17,71,91));
     native_theme_fill(dc,&rule,RGB(34,147,140));
+    if(packaging_visible())return;
     native_theme_fill(dc,&bottom,CHAT_FOOTER_COLOR);
     native_theme_fill(dc,&divider,RGB(216,225,230));
     native_theme_edit_frame(dc,window,native_history,CHAT_CANVAS_COLOR);
@@ -112,3 +195,6 @@ static void native_theme_button(const DRAWITEMSTRUCT *item){
     }
     if(saved)RestoreDC(item->hDC,saved);
 }
+
+
+

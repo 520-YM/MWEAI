@@ -2,51 +2,18 @@
 #include "camera_mount.inc"
 
 typedef struct {
-    wchar_t name[PRO_NAME_SIZE];
-    wchar_t leaf[MAX_PATH];
+    const wchar_t *name;
+    const wchar_t *leaf;
     ProMdlType type;
 } CameraReference;
 
-static CameraReference camera_references[5];
-
-static ProError camera_reference_settings(const wchar_t *folder){
-    static const wchar_t *const keys[]={L"Bracket",L"Electronics",L"Standoff",L"Nut",L"Assembly"};
-    ProPath config;
-    if(swprintf_s(config,PRO_PATH_SIZE,L"%ls\\camera-models.ini",folder)<0)return PRO_TK_BAD_INPUTS;
-    wchar_t verified[MAX_PATH];
-    HANDLE file=company_open_path(config,0,verified);
-    if(file==INVALID_HANDLE_VALUE)return PRO_TK_E_NOT_FOUND;
-    ProError error=0;
-    for(size_t i=0;i<_countof(keys);i++){
-        CameraReference *item=&camera_references[i];
-        DWORD length=GetPrivateProfileStringW(L"Models",keys[i],L"",item->leaf,MAX_PATH,verified);
-        const wchar_t *suffix=native_file_suffix(item->leaf);
-        AttachmentKind kind=native_file_kind(suffix);
-        item->type=i==4?PRO_MDL_ASSEMBLY:PRO_MDL_PART;
-        if(!length||length>=MAX_PATH-1||!suffix||kind!=(i==4?ATTACH_ASSEMBLY:ATTACH_PART)||
-           !company_fastener_model_name(item->leaf,&(size_t){0},&(unsigned long){0})||
-           wcsncpy_s(item->name,_countof(item->name),item->leaf,suffix-item->leaf)||
-           !dv_safe_leaf(item->name)){
-            error=PRO_TK_BAD_INPUTS;
-            break;
-        }
-    }
-    if(!error){
-        static const wchar_t *const part_keys[]={L"Standoff1",L"Standoff2",L"Nut1",L"Nut2"};
-        cad_electronics.name=camera_references[1].name;
-        cad_electronics.id=(int)GetPrivateProfileIntW(L"Instances",L"Electronics",54,verified);
-        const int defaults[]={40,41,43,46};
-        for(size_t i=0;i<_countof(cad_fasteners);i++){
-            cad_fasteners[i].name=camera_references[i<2?2:3].name;
-            cad_fasteners[i].id=(int)GetPrivateProfileIntW(L"Instances",part_keys[i],defaults[i],verified);
-            if(cad_fasteners[i].id<1||cad_fasteners[i].id==cad_electronics.id)error=PRO_TK_BAD_INPUTS;
-            for(size_t j=0;j<i;j++)if(cad_fasteners[i].id==cad_fasteners[j].id)error=PRO_TK_BAD_INPUTS;
-        }
-        if(cad_electronics.id<1)error=PRO_TK_BAD_INPUTS;
-    }
-    CloseHandle(file);
-    return error;
-}
+static const CameraReference camera_references[]={
+    {L"M26G2081070",L"m26g2081070.prt.4",PRO_MDL_PART},
+    {L"2M0859-V1",L"2m0859-v1.prt.3",PRO_MDL_PART},
+    {L"BSO-M2-6L",L"bso-m2-6l.prt.4",PRO_MDL_PART},
+    {L"S-M3-1ZI",L"s-m3-1zi.prt.5",PRO_MDL_PART},
+    {L"M26G2081070",L"m26g2081070.asm.5",PRO_MDL_ASSEMBLY}
+};
 
 static const wchar_t camera_risk_message[]=
     L"【回溯风险重点提醒】环境摄像头支架包含边法兰。处理不完整附加壁或失败回滚时曾触发 Creo 回溯。当前操作在新建的独立钣金件中按已验收的原步骤重建。";
@@ -55,9 +22,9 @@ static ProError camera_reference_folder(ProPath folder){
     ProPath standard;
     ProError error=imitation_standard_directory(standard);
     if(!error&&swprintf_s(folder,PRO_PATH_SIZE,L"%ls\\环境摄像头",standard)<0)error=PRO_TK_BAD_INPUTS;
-    if(!error&&(!imitation_library_is_directory(folder)||!storage_directory_on_drive(folder,storage_data_drive())))
+    if(!error&&(!imitation_library_is_directory(folder)||!storage_directory_on_drive(folder,L'E')))
         error=PRO_TK_E_NOT_FOUND;
-    return error?error:camera_reference_settings(folder);
+    return error;
 }
 
 static ProError camera_reference_origin(ProMdl model,const wchar_t *expected){
@@ -66,7 +33,7 @@ static ProError camera_reference_origin(ProMdl model,const wchar_t *expected){
     if(error)return error;
     for(wchar_t *p=actual;*p;p++)if(*p==L'/')*p=L'\\';
     if(!_wcsicmp(actual,expected))return PRO_TK_NO_ERROR;
-    if(towupper(actual[0])!=storage_data_drive()||actual[1]!=L':')return PRO_TK_E_IN_USE;
+    if(towupper(actual[0])!=L'E'||actual[1]!=L':')return PRO_TK_E_IN_USE;
     wchar_t current_hash[65],expected_hash[65];
     ULONGLONG current_size,expected_size;
     const int same=dv_sha256(actual,current_hash,&current_size)&&
@@ -80,7 +47,7 @@ static ProError camera_read_source(const wchar_t *reference,ProMdl *assembly,Pro
     ProMdl models[_countof(camera_references)]={0};
     ProError error=ProDirectoryCurrentGet(work);
     if(error)return error;
-    if(!storage_directory_on_drive(reference,storage_data_drive()))return PRO_TK_BAD_CONTEXT;
+    if(!storage_directory_on_drive(reference,L'E'))return PRO_TK_BAD_CONTEXT;
 
     /* Finish path and in-session conflict checks before loading any source. */
     for(size_t i=0;i<_countof(camera_references);i++){
@@ -198,7 +165,7 @@ static ProError camera_standard_build(const wchar_t *reference,const wchar_t *re
     int components=0;
     *assembly=NULL;
     ProError error=ProDirectoryCurrentGet(workspace);
-    if(!error&&(!storage_directory_on_drive(workspace,storage_data_drive())||!storage_prepare_output())){
+    if(!error&&(!storage_directory_on_drive(workspace,L'E')||!storage_prepare_output())){
         part_text_add(out,L"%ls\n",storage_output_message);
         error=PRO_TK_BAD_CONTEXT;
     }

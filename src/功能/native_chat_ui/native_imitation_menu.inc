@@ -33,7 +33,10 @@ static HMENU native_imitation_menu_create(void){
     };
     static const ImitationMenuEntry batch[]={
         {IMITATION_BATCH_PREVIEW,L"批量预检模型与参照…"},
-        {IMITATION_BATCH,L"批量按原步骤重建…"}
+        {IMITATION_BATCH,L"批量按原步骤重建…"},
+        {IMITATION_DRAWING_NUMBER_AUDIT,L"查看装配图号"},
+        {IMITATION_DRAWING_NUMBER_PREVIEW,L"预览批量图号…"},
+        {IMITATION_DRAWING_NUMBER_APPLY,L"应用批量图号…"}
     };
     static const ImitationMenuEntry learning[]={
         {IMITATION_LEARN,L"保存最近的建模方法"},
@@ -47,7 +50,8 @@ static HMENU native_imitation_menu_create(void){
     };
     HMENU menu=CreatePopupMenu();
     if(!menu)return NULL;
-    if(AppendMenuW(menu,MF_STRING,IMITATION_CURRENT,L"重建当前模型")&&
+    if(AppendMenuW(menu,MF_STRING,IMITATION_REFERENCE_DESIGN,L"参考建模与装配…")&&
+       AppendMenuW(menu,MF_STRING,IMITATION_CURRENT,L"重建当前模型")&&
        AppendMenuW(menu,MF_STRING,IMITATION_FILE,L"选择模型文件并重建…")&&
        AppendMenuW(menu,MF_SEPARATOR,0,NULL)&&
        imitation_menu_section(menu,L"重建与试改",rebuild,_countof(rebuild))&&
@@ -74,7 +78,15 @@ static void native_imitation_menu(HWND button){
         return;
     }
     const wchar_t *draft=NULL;
-    if(action==IMITATION_CSYS_METHOD)
+    if(action==IMITATION_REFERENCE_DESIGN)
+        draft=L"参考建模与装配 REPLAY 〔待填：当前项目中的源件.prt.版本〕 〔待填：新图号含V00〕";
+    else if(action==IMITATION_DRAWING_NUMBER_AUDIT)
+        draft=L"查看装配图号";
+    else if(action==IMITATION_DRAWING_NUMBER_PREVIEW)
+        draft=L"预览批量图号 〔待填：8位前缀〕 V00 1 ID:〔待填：自制件实例〕 MAKE \"〔待填：零件名称〕\"";
+    else if(action==IMITATION_DRAWING_NUMBER_APPLY)
+        draft=L"应用批量图号 〔待填：预览给出的编号〕";
+    else if(action==IMITATION_CSYS_METHOD)
         draft=L"用已学的坐标系定位法，把当前总装里的组件〔待填：组件型号或当前实例 ID〕"
             L"按案例〔待填：源装配名，或上次学习的案例〕定位。核对新组件和当前总装的两个坐标系后直接执行。";
     else if(action==IMITATION_SHEET_CUT_METHOD)

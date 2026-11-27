@@ -196,9 +196,57 @@ static ProError replay_pattern_seed_dimensions(ProSection section){
 static int replay_intrinsic_sketch_reference(Pro2dEntType type){
     return type==PRO_2D_POINT||type==PRO_2D_CENTER_LINE||type==PRO_2D_COORD_SYS;
 }
+
+static int replay_coincident_line_target(ProSection source,const ReplaySectionEntity *map,int count,
+                                        const Pro2dLinedef *line){
+    for(int i=0;i<count;i++){
+        ProBoolean projection=PRO_B_FALSE,construction=PRO_B_FALSE;
+        Pro2dEntdef *entity=NULL;
+        if(ProSectionEntityIsProjection(source,map[i].source,&projection)||projection||
+           ProSectionEntityIsConstruction(source,map[i].source,&construction)||construction||
+           ProSectionEntityGet(source,map[i].source,&entity)||entity->type!=PRO_2D_LINE)continue;
+        const Pro2dLinedef *other=(const Pro2dLinedef *)entity;
+        if(hypot(line->end1[0]-other->end1[0],line->end1[1]-other->end1[1])<=1e-9&&
+           hypot(line->end2[0]-other->end2[0],line->end2[1]-other->end2[1])<=1e-9)return map[i].target;
+    }
+    return -1;
+}
+
+static void replay_topology_diagnostic(FILE *log,ProSection section,const wchar_t *name){
+    int *ids=NULL,count=0;
+    ProSectionShape shape;
+    ProError listed=ProSectionEntityIdsGet(section,&ids,&count);
+    ProError classified=ProSectionShapeGet(section,&shape);
+    fwprintf(log,L"SKETCH %ls entities=%d(%d) shape=%d(%d)\n",name,count,listed,classified?-1:(int)shape,classified);
+    for(int i=0;!listed&&i<count&&i<REPLAY_SECTION_MAX;i++){
+        ProBoolean projection=PRO_B_FALSE,construction=PRO_B_FALSE;
+        Pro2dEntdef *entity=NULL;
+        const ProError projected=ProSectionEntityIsProjection(section,ids[i],&projection);
+        const ProError constructed=ProSectionEntityIsConstruction(section,ids[i],&construction);
+        const ProError geometry=ProSectionEntityGet(section,ids[i],&entity);
+        fwprintf(log,L"ENTITY %d type=%d(%d) projection=%d(%d) construction=%d(%d)",
+            ids[i],geometry?-1:(int)entity->type,geometry,projection,projected,construction,constructed);
+        if(!geometry&&(entity->type==PRO_2D_LINE||entity->type==PRO_2D_CENTER_LINE)){
+            const Pro2dLinedef *line=(const Pro2dLinedef *)entity;
+            fwprintf(log,L" %.12g %.12g %.12g %.12g",line->end1[0],line->end1[1],line->end2[0],line->end2[1]);
+        }else if(!geometry&&entity->type==PRO_2D_CIRCLE){
+            const Pro2dCircledef *circle=(const Pro2dCircledef *)entity;
+            fwprintf(log,L" %.12g %.12g %.12g",circle->center[0],circle->center[1],circle->radius);
+        }else if(!geometry&&entity->type==PRO_2D_ARC){
+            const Pro2dArcdef *arc=(const Pro2dArcdef *)entity;
+            fwprintf(log,L" %.12g %.12g %.12g %.12g %.12g",arc->center[0],arc->center[1],arc->radius,arc->start_angle,arc->end_angle);
+        }
+        fwprintf(log,L"\n");
+    }
+    if(ids)ProArrayFree((ProArray *)&ids);
+}
+
 static ProError replay_draw_section(ImitationReplay *replay,ProSection source,ProSection target,
                                     ReplaySectionMode mode,int *drawn,int *dimensions){
     const int independent=mode!=REPLAY_ASSOCIATIVE_SECTION;
+    ProSectionShape source_shape;
+    const int alias_lines=!independent&&!ProSectionShapeGet(source,&source_shape)&&
+                          source_shape==PRO_SECSHAPE_MULTI_CLOSED_LOOPS;
     ProBoolean intent=PRO_B_FALSE;
     ProError error=ProSectionIntentManagerModeGet(target,&intent);
     if(error)trace("Replay sketch read intent",error);
@@ -207,7 +255,7 @@ static ProError replay_draw_section(ImitationReplay *replay,ProSection source,Pr
         if(error)trace("Replay sketch disable intent",error);
     }
     ReplaySectionEntity map[REPLAY_SECTION_MAX];
-    int *ids=NULL,count=0,mapped=0;
+    int *ids=NULL,count=0,mapped=0,aliases=0;
     if(!error){
         error=ProSectionEntityIdsGet(source,&ids,&count);
         if(error)trace("Replay source sketch entity list",error);
@@ -272,6 +320,19 @@ static ProError replay_draw_section(ImitationReplay *replay,ProSection source,Pr
         default:error=PRO_TK_UNSUPPORTED;
         }
         int id;
+        Pro2dLinedef line;
+        if(!error&&alias_lines&&!construction&&entity->type==PRO_2D_LINE){
+            /* Older offset profiles can expose repeat endpoints with distinct IDs.
+               Give each dimension a target without drawing the same boundary twice. */
+            line=*(const Pro2dLinedef *)entity;
+            id=replay_coincident_line_target(source,map,mapped,&line);
+            if(id>=0){
+                map[mapped++]=(ReplaySectionEntity){ids[i],id};
+                aliases++;
+                continue;
+            }
+            entity=(Pro2dEntdef *)&line;
+        }
         if(!error)error=ProSectionEntityAdd(target,entity,&id);
         if(error){trace("Replay draw entity type",entity->type);trace("Replay draw entity",error);}
         if(!error)map[mapped++]=(ReplaySectionEntity){ids[i],id};
@@ -325,9 +386,22 @@ static ProError replay_draw_section(ImitationReplay *replay,ProSection source,Pr
         if(!error&&a!=b){
             trace("Replay source section topology",a);
             trace("Replay result section topology",b);
+            FILE *log=runtime_open(L"imitation-native-diagnostics.log",L"at, ccs=UTF-8");
+            if(log){
+                fwprintf(log,L"SKETCH_TOPOLOGY_MISMATCH feature=%d\n",replay->current_feature);
+                for(int i=0;i<mapped;i++)
+                    fwprintf(log,L"MAP %d -> %d localized=%d generated=%d\n",map[i].source,map[i].target,
+                        map[i].localized,map[i].generated_axis);
+                replay_topology_diagnostic(log,source,L"source");
+                replay_topology_diagnostic(log,target,L"rebuilt");
+                fclose(log);
+            }
             error=PRO_TK_INCOMPLETE;
         }
     }
+    if(!error&&aliases)
+        part_text_add(replay->out,L"源特征 %d 的 %d 条重合边共用重画轮廓，原多闭环拓扑已复核。\n",
+                      replay->current_feature,aliases);
     return error;
 }
 
@@ -335,6 +409,15 @@ static ProError replay_section_frame(ProSection source,ProSection target){
     ProMatrix a,b;
     ProError error=ProSectionLocationGet(source,a);
     if(!error)error=ProSectionLocationGet(target,b);
-    for(int i=0;!error&&i<4;i++)if(!ad_near(a[i],b[i],0.0002))error=PRO_TK_INCOMPLETE;
+    for(int i=0;!error&&i<4;i++)if(!ad_near(a[i],b[i],0.0002)){
+        FILE *log=runtime_open(L"imitation-native-diagnostics.log",L"at, ccs=UTF-8");
+        if(log){
+            for(int row=0;row<4;row++)fwprintf(log,
+                L"replay_section_frame row=%d source=(%.12g %.12g %.12g %.12g) target=(%.12g %.12g %.12g %.12g)\n",
+                row,a[row][0],a[row][1],a[row][2],a[row][3],b[row][0],b[row][1],b[row][2],b[row][3]);
+            fclose(log);
+        }
+        error=PRO_TK_INCOMPLETE;
+    }
     return error;
 }

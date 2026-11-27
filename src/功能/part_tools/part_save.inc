@@ -1,4 +1,9 @@
 
+#ifdef BWTL_RUNTIME_PATHS_H
+        e=bwtl_save_guarded(model,text,capacity);
+        break;
+#else
+
         ProPath before,after;
         e=ProDirectoryCurrentGet(before);if(!e)e=part_regenerate(model);if(!e)e=ProMdlSave(model);
         if(!e)e=ProDirectoryCurrentGet(after);
@@ -12,3 +17,5 @@
         }
         break;
     
+
+#endif

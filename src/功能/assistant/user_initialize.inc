@@ -56,9 +56,13 @@ __declspec(dllexport) int user_initialize(int argc, char **argv, char *version, 
     error=ProCmdActionAdd("BWTLSmartContinue",smart_continue_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLComponentOpenConfirm",component_open_confirm,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLReturnAssemblyConfirm",return_assembly_confirm,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
+    error=ProCmdActionAdd("BWTLSessionWindowConfirm",session_window_confirm,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
+    error=ProCmdActionAdd("BWTLPressfitParentConfirm",pressfit_parent_confirm,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLFastenerMenu",fastener_menu_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLFastenerOpenConfirm",fastener_open_confirm,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLDefaultPartContinue",default_part_continue,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
+    error=ProCmdActionAdd("BWTLPanelFlowConfirm",panel_flow_confirm,uiProe2ndImmediate,
+        access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLAttachmentCleanup",attachment_cleanup_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLResidentTool",resident_tool_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLWorkingDirectory",working_directory_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);
@@ -66,7 +70,19 @@ __declspec(dllexport) int user_initialize(int argc, char **argv, char *version, 
     error=ProCmdActionAdd("BWTLImitateModel",imitation_ui_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);
     trace("Register model imitation",error);
     if(error)return error;
+    error=ProCmdActionAdd("MWEAIBackgroundStart",background_start_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
+    error=ProCmdActionAdd("MWEAIPackaging",packaging_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);if(error)return error;
     error=ProCmdActionAdd("BWTLScreenshotMarkup",markup_native_command,uiProe2ndImmediate,access_command,PRO_B_TRUE,PRO_B_TRUE,&command);
+    if(error)return error;
+    error=ProCmdActionAdd("BWTLLocalControlApply",local_control_gui_command,uiProe2ndImmediate,
+        access_command,PRO_B_TRUE,PRO_B_TRUE,&command);
+    trace("Register isolated local control command",error);
+    const int local_control_registered=error==PRO_TK_NO_ERROR;
+    error=ProCmdActionAdd("BWTLLocalModelConfirm",local_control_model_confirm,uiProe2ndImmediate,
+        access_command,PRO_B_TRUE,PRO_B_TRUE,&command);
+    if(error)return error;
+    error=ProCmdActionAdd("BWTLLiveSnapshot",bwtl_live_refresh_command,uiProe2ndImmediate,
+        access_command,PRO_B_TRUE,PRO_B_TRUE,&command);
     if(error)return error;
     trace("Register native shortcut", ProConfigoptSet(L"mapkey", L"cdx @MAPKEY_LABELMWEAI;~ Command `CodexNativeOpen`;"));
     error=ProRibbonDefinitionfileLoad(L"toolkitribbonui.rbn");
@@ -75,5 +91,15 @@ __declspec(dllexport) int user_initialize(int argc, char **argv, char *version, 
         swprintf_s(error_buffer,80,L"MWEAI ribbon load failed: %d",error);
         return error;
     }
+    bwtl_save_watch_start();
+    if(local_control_registered){
+        const int enabled=GetPrivateProfileIntW(L"LocalControl",L"Enabled",1,runtime_settings);
+        if(enabled)trace("BWTL collaboration journal open",bwtl_live_open()?0:-1);
+        const int started=local_control_start(native_backend_window);
+        trace("BWTL isolated local control started",started?0:-1);
+        if(!started)bwtl_live_close();
+    }
+    bwtl_live_watch_start();
     return 0;
 }
+

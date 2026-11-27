@@ -46,13 +46,40 @@
     "Assembly experience persistence and menu fastener open-save",
     "Prior chat and verified model creation evidence carried to follow-up prompts; same-session attachment context",
     "Resolve managed company library aliases and native BSO M3x6 read, project copy and single-batch placement",
-    "Preview.6: public data-drive configuration and application-managed camera model manifest",
-    "0.23.0-preview.7: validated BWTL-only task window transitions and shared feature menu attachment group."
+    "Restore the feature menu after the attachment category rename",
+    "Refresh the Creo target after a verified in-task component window transition and return to the confirmed parent",
+    "Authorized project text writes and persistent general modeling rules from BWTL chat",
+    "Recognize explicit contextual rule saves while retaining consent checks",
+    "Diagnose BWTL fastener library access, verify BSO revisions and preserve assembly progress",
+    "Verified exact registered press-fit library selection, project copy and native placement.",
+    "Local company catalog: 453 exact press-fit models installed in independent Creo with native dual-constraint readback and stored evidence.",
+    "Verified Creo session window navigation, explicit current grid routing, receipts and safe alternate-method recovery.",
+    "Unified direct press-fit placement and exact BSO/BSOS family row lookup.",
+    "Reviewed BWTL native press-fit command routing, UI version, and session-bound cleanup.",
+    "Reviewed model-bound conversation, company part entry, attachment intent and scope, verified sheetmetal recovery and native U geometry.",
+    "BWTL native AI drawing workflow: typed method replay, geometric screenshot changes, library mounting and engineering packages",
+    "Preserve scoped native task outcomes, company drafting identity and observed-state recovery in BWTL",
+    "BWTL full-request intake and verified measured four-hole recovery",
+    "BWTL capture and mark-directed native assembly and part edits",
+    "BWTL per-session local control and native save conflict protection",
+    "BWTL dedicated bound workflows for paired native sheet metal creation and explicit pressfit placement",
+    "Register only byte-verified published project hardware copies with the BWTL native save guard",
+    "Shared bounded native rectangular sheet and exact BSO one-command workflow",
+    "Multi-position native panel assembly and verified scoped BSO follow-up",
+    "Named pressfit groups from native irregular hole locations and exact scoped revision",
+    "Reviewed native pressfit workspace command routes, occurrence isolation, assembly checks, and delivery",
+    "Threaded standoff assembly with native ISO evidence and scoped constraint, engagement, interference readback",
+    "0.23.0-local.realtime.1 candidate: BWTL-only host startup and event hooks expose existing guarded Creo actions. Original chat, model creation, and older bridge routing are retained. Native runtime acceptance remains pending.",
+    "0.23.0-local.referencedesign.1 adds one BWTL-only menu action, one exact chat route and one explicitly bound native request. Existing action IDs and Creo commands are preserved.",
+    "0.23.0-local.referencecompletion.1 adds BWTL drawing number dispatch and native interference review with an overlay lifecycle. The compatibility check applies to BWTL source only.",
+    "0.23.0-local.connectionfusion.1 prevents chat writes during an attested COM window transition and adds resident pipes alongside the unchanged BWTL/1 endpoint.",
+    "0.23.0-local.connectionstartup.1 starts COM in the isolated BWTL session and exposes readiness without changing existing BWTL/1 model command contracts.",
+    "0.23.0-preview.10 adds one MWEAI-only background dispatch action, private timer and standalone Toolkit build. Existing foreground actions retain their IDs."
   ],
   "Files": [
     {
       "Path": "src/assistant.c",
-      "SHA256": "2be414d064bbb8d228df0e781556245866eaf21c572539f38f10ac2c20f61812"
+      "SHA256": "f3adcba7726fdaef0a7121f90e4338230440f84d8645e4bd4d24f98d90c23dcf"
     },
     {
       "Path": "src/chat_store.h",
@@ -72,7 +99,7 @@
     },
     {
       "Path": "src/foundation_tools.h",
-      "SHA256": "4f0c33e867ef2cc5b1b4f065ebb91b47e2a65119e48180370679d71f7a090a06"
+      "SHA256": "8b2eba43f5a052cff0285cfee56afec1cb094334f5f6b80915f48caa2f0c1202"
     },
     {
       "Path": "src/history_context.h",
@@ -84,7 +111,7 @@
     },
     {
       "Path": "src/native_chat_ui.h",
-      "SHA256": "1fe21cb138780e0aed10c426d1e0a757f17217b82afb12ad89650b8a8e359670"
+      "SHA256": "445194310b096c62d9dd6f7b4f0902a3c2754d85661afe4c58b44e0bee32ef72"
     },
     {
       "Path": "src/native_model.h",
@@ -104,7 +131,7 @@
     },
     {
       "Path": "src/part_tools.h",
-      "SHA256": "e2b956e60de3a3b5be8d532e9b91f925dcc47c80dbb57bfb0ae90c79b13cc0e2"
+      "SHA256": "0d004d144c5164bb0d4e26f0b26772f9d568ee62b263aeec0eb4c4b2e45e3dfc"
     },
     {
       "Path": "src/prompt_encoding.h",
@@ -136,11 +163,11 @@
     },
     {
       "Path": "src/功能/assistant/ai_poll.inc",
-      "SHA256": "401a14bd90d6e116964490e9049831d510022d16d96c7a21e05cb608695fe8ea"
+      "SHA256": "ff4bf2d102041a845cc2626c8d8b42f14749c70593433a3749f0237c1a2f6a62"
     },
     {
       "Path": "src/功能/assistant/ai_send.inc",
-      "SHA256": "9b628a6dcccbecb9ddc9d47ee704888fa6f1478d1d12acb2dcda160f29857f02"
+      "SHA256": "1cea4936164a9dcd7c14deb9faa9947ed71a1f558871fa45cdc7f85650279b0f"
     },
     {
       "Path": "src/功能/assistant/append_card.inc",
@@ -164,7 +191,7 @@
     },
     {
       "Path": "src/功能/assistant/execute_part_command.inc",
-      "SHA256": "c200207aa2007bcf1b97b2fca58c3051ae98ca3a1682fbcd39b3a5a4b62ac8f4"
+      "SHA256": "3978c66ad2951018c4f665034b202fa8ebc196df457fc341601c75192b34d836"
     },
     {
       "Path": "src/功能/assistant/inspect_native_command.inc",
@@ -172,11 +199,11 @@
     },
     {
       "Path": "src/功能/assistant/memory_command.inc",
-      "SHA256": "fae87a5547effa7f75d4919c14720888f44d1a95da5167018ea6d58c51accd8c"
+      "SHA256": "5938924fcd6b0ae9de93b4ca68fe3ec7ee14de5fdc57ee14b58e31d4c97cd339"
     },
     {
       "Path": "src/功能/assistant/native_backend_proc.inc",
-      "SHA256": "3fb3270147d340b54660ecd842a77ea1c1522d84156b89b4ea079047555a9b0b"
+      "SHA256": "a70d782285b9c33af1087ab58f8372544730fa4e9d854b2fca9701a684aad2ac"
     },
     {
       "Path": "src/功能/assistant/native_close_action.inc",
@@ -196,7 +223,7 @@
     },
     {
       "Path": "src/功能/assistant/on_closed.inc",
-      "SHA256": "bdf21dc82619fb973c38af8f5c9aeaae4a31ba9fee4cf2c6a48612a78de86962"
+      "SHA256": "b18da246cc97f4ab36b8a37ebad161eafed12ea039ad214f943123267ed0a832"
     },
     {
       "Path": "src/功能/assistant/open_window.inc",
@@ -208,7 +235,7 @@
     },
     {
       "Path": "src/功能/assistant/run_local.inc",
-      "SHA256": "d695c886f45d96ff676431653f06ad710ebeeefd6766e66bd40792e970cf75fb"
+      "SHA256": "d7e7b5f4b761c319776c7bbf9ce0af9e9023326fecbc7c3417e4d46dd98437f8"
     },
     {
       "Path": "src/功能/assistant/save_pending_plan.inc",
@@ -216,7 +243,7 @@
     },
     {
       "Path": "src/功能/assistant/save_turn.inc",
-      "SHA256": "9b7fd8090b25cd11304d0c6b3056e051ebd1dcfa784977492f4f0c9f2308cb4e"
+      "SHA256": "ef529b24c83b9c86a30a58a6c7d7f4e11a22b8684c3335a57eaac2e2b5693e08"
     },
     {
       "Path": "src/功能/assistant/send_native_command.inc",
@@ -232,15 +259,15 @@
     },
     {
       "Path": "src/功能/assistant/user_initialize.inc",
-      "SHA256": "413a9d6d3e026c9607291ad272f4dc391fe23bc29d30c00268747281c7172ae4"
+      "SHA256": "2463f19edeffa3da8f3fe4e63735f07d4611baff72d024ce1d57e10db9b5cc1c"
     },
     {
       "Path": "src/功能/assistant/user_terminate.inc",
-      "SHA256": "7f6032c3aea1a84376645995bf69c9f42b25408fde0d9c30267270a19cd67263"
+      "SHA256": "5d90f5ee41795b6648cc76991b6bbefa47219b27f792aeeee1414636593ffceb"
     },
     {
       "Path": "src/功能/assistant/verify_active_command.inc",
-      "SHA256": "07829cfeb9079e76ecdb182770f7bf46f69d067592f856b067965475f25f2fcd"
+      "SHA256": "39e65320e033dab5ba16bf440d3a97dd248ab0ba3d4c39f0eaf3b61696786427"
     },
     {
       "Path": "src/功能/chat_store/store_forget.inc",
@@ -428,7 +455,7 @@
     },
     {
       "Path": "src/功能/foundation_tools/fd_sketch_create.inc",
-      "SHA256": "f567d9c73ba36b9d19a67e03819b89d3c83351c72fe1988de2c82357a3dd46f9"
+      "SHA256": "8fce23ae3ba2783e76ff8535ad7b1eea4f07a41679a5af3b9d579a03b09c5552"
     },
     {
       "Path": "src/功能/foundation_tools/fd_sketch_edit.inc",
@@ -448,7 +475,7 @@
     },
     {
       "Path": "src/功能/foundation_tools/fd_sketch_setup.inc",
-      "SHA256": "65e712cbbb2a999a1dd366b6184e935ae205315aeb78eeb7fa8b3c1b1d6b5188"
+      "SHA256": "5b0ee0d18f9770ab21ee81160e805f5b7f512bdc90ed68325f749dd0d1e44ecf"
     },
     {
       "Path": "src/功能/foundation_tools/fd_verify.inc",
@@ -552,7 +579,7 @@
     },
     {
       "Path": "src/功能/native_chat_ui/native_layout.inc",
-      "SHA256": "df90f5bba18596454af2b656432425e94d56fde196604c977b5506fb8fd1c530"
+      "SHA256": "390d83f72a8d3b01cc29c28c2c8b293876f8cc6b4768400295405dd790f63ac1"
     },
     {
       "Path": "src/功能/native_chat_ui/native_prompt_get.inc",
@@ -576,11 +603,11 @@
     },
     {
       "Path": "src/功能/native_chat_ui/native_ui_create.inc",
-      "SHA256": "b79de8a8de9c0cef20164df80da9d4aab7706ffd8f1050ba144b3c4feed12d8a"
+      "SHA256": "e47ced9ed7914ee1bb463f62fa6de5aa1b02cb6f7ef8b656398a1ae9b2fd2861"
     },
     {
       "Path": "src/功能/native_chat_ui/native_ui_history.inc",
-      "SHA256": "ed8075081d6e9c626a288c9d14d1bb4c4fde174592b32355d135d68b2d907ce2"
+      "SHA256": "5eacf904a5ab178a9c2f4def285344b9b521e5f7ba13405d1fa5fac1c998f387"
     },
     {
       "Path": "src/功能/native_chat_ui/native_ui_open_threaded.inc",
@@ -596,7 +623,7 @@
     },
     {
       "Path": "src/功能/native_chat_ui/native_window_proc.inc",
-      "SHA256": "cb1323e7efb4deb70c4c4f69e4d4e59fb74698f6a3a7c2081d5c9c086d82e904"
+      "SHA256": "551f3e57a99a8fd9a0a3679a6348ede5b59536f6a4bc29bd833aafcb7940bb30"
     },
     {
       "Path": "src/功能/native_model/model_build_internal.inc",
@@ -712,7 +739,7 @@
     },
     {
       "Path": "src/功能/part_tools/part_execute.inc",
-      "SHA256": "79e8728ca1ba974a4ccf216609b1408475978cab7a11d6f48a935aa0f45393b7"
+      "SHA256": "3a8bda337291e5d78dca8c8aa212ee87a8b154a66e091f8392fa7048897deeb2"
     },
     {
       "Path": "src/功能/part_tools/part_extrude_current.inc",
@@ -772,7 +799,7 @@
     },
     {
       "Path": "src/功能/part_tools/part_save.inc",
-      "SHA256": "fab6dba8d17449ec85eaf7627882da3181f2695aadac51e2b0d713bad0b7c512"
+      "SHA256": "605b55b6b17ff47ef22e47250ca6f9fca645e95f8143e767464de29a0d90c78d"
     },
     {
       "Path": "src/功能/part_tools/part_snapshot_clear.inc",
@@ -856,7 +883,7 @@
     },
     {
       "Path": "src/功能/solid_tools/sd_create.inc",
-      "SHA256": "bd3f2915109d9bce52a61ac5fb398aaea445326f0bd662ea97e38385cd0b1016"
+      "SHA256": "eb35a8cec5beb1504054365ce7578613bcb486e8cfea384475d72530b470b310"
     },
     {
       "Path": "src/功能/solid_tools/sd_edit.inc",
@@ -948,7 +975,7 @@
     },
     {
       "Path": "build.cmd",
-      "SHA256": "91a2cdd55c60b648c32664b749c98b4e63d4fd27a2d298ff1e3cc1777c226d26"
+      "SHA256": "e8fce1d4d8552814393e71950eac37632a256f7da0d47e536cdf7c17e012d454"
     },
     {
       "Path": "tests/Test-LegacyCompatibility.ps1",

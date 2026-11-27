@@ -7,6 +7,7 @@
 #include "imitation_infer_flat.inc"
 #include "imitation_learning_store.inc"
 #include "imitation_learning_capture.inc"
+#include "../ai_drawing/ai_cad_u_method.inc"
 
 typedef struct {
     int features,imports,datums,dimensions;

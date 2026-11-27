@@ -1,9 +1,10 @@
 static const wchar_t *smart_failed_action(const PartCommand *cmd){
     static const struct {const wchar_t *verb,*name;} names[]={
         {L"SMT_SKETCH",L"画钣金草绘"},{L"SKETCH_CREATE",L"画草绘"},{L"SKETCH_ADD",L"补画草绘"},
-        {L"SMT_FIRST_WALL",L"创建第一块钣金壁"},{L"SMT_CUT",L"在钣金上切口"},
+        {L"SOLID_EXTRUDE",L"按草绘拉伸"},{L"SMT_FIRST_WALL",L"创建第一块钣金壁"},{L"SMT_CUT",L"在钣金上切口"},
         {L"SMT_FLANGE",L"创建钣金凸缘"},{L"SMT_BEND",L"创建折弯"},{L"CASE_TRAY",L"制作钣金托盘"},
         {L"SMT_FLAT4",L"在钣金平板加工四个通孔"},{L"EDGE_ROUND",L"倒圆角"},{L"EDGE_CHAMFER",L"倒角"},{L"HOLE_CREATE",L"开孔"},
+        {L"ASM_INSERT",L"装入组件"},{L"ASM_INSERT_ASM",L"装入子装配"},{L"ASM_W_FIND",L"查找装配中已有的组件"},
         {L"ASM_W_ALIGN",L"定位装配组件"},{L"ASM_W_ALIGN_BATCH",L"批量定位装配组件"}
     };
     if(cmd){
@@ -27,7 +28,8 @@ static void smart_describe_failure(const PartCommand *cmd,const wchar_t *receipt
         size_t count=wcscspn(named,L"\r\n");
         while(count&&named[count-1]==L'。')count--;
         const wchar_t *state=smart_unsafe_receipt(receipt)?L"。改动是否撤回还没有确认":
-            wcsstr(receipt,L"已核对移除本次特征")?L"。本次失败特征已撤回，原板保留":L"";
+            (wcsstr(receipt,L"已核对移除本次特征")||wcsstr(receipt,L"已核对移除本次新增特征"))?
+            L"。已核对这一步未遗留新增特征":L"";
         swprintf_s(out,capacity,L"简单说：%.*ls%ls。",(int)(count>200?200:count),named,state);
         return;
     }

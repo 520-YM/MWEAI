@@ -14,22 +14,27 @@ static void resident_file(const wchar_t *path){
     static const wchar_t *const supported[]={L".txt",L".md",L".csv",L".tsv",L".json",L".log"};
     static wchar_t text[32000];
     wchar_t base[MAX_PATH],resolved[MAX_PATH];
+    int relative=!wcspbrk(path,L"\\/:");
     const wchar_t *extension=wcsrchr(path,L'.');
     wchar_t drive=storage_output_drive();
     int kind=0;
     if(extension)for(int i=0;i<_countof(supported);i++)if(!_wcsicmp(extension,supported[i])){kind=1;break;}
-    if(wcslen(path)<4||wcslen(path)>=MAX_PATH||!kind||path[1]!=L':'||
-       (path[2]!=L'\\'&&path[2]!=L'/')||!resident_named_file(path)||
-       !GetFullPathNameW(path,MAX_PATH,base,NULL)){
-        resident_tool_result(-1,L"请在本条消息写出要读取的完整 E 盘文本文件路径。支持 TXT、MD、CSV、TSV、JSON 和 LOG。");
+    int authorized=relative?file_write_destination_path(path,PROJECT_TEXT_REPLACE,base):
+        wcslen(path)>=4&&wcslen(path)<MAX_PATH&&path[1]==L':'&&
+        (path[2]==L'\\'||path[2]==L'/')&&resident_named_file(path)&&
+        GetFullPathNameW(path,MAX_PATH,base,NULL)!=0;
+    if(!kind||!authorized){
+        resident_tool_result(-1,L"请提供文本的完整授权路径。明确要求修改当前工作目录中的文件时，可按文件名核对原文。");
         return;
     }
     HANDLE file=CreateFileW(base,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN,NULL);
     if(file==INVALID_HANDLE_VALUE){resident_tool_result(-1,L"打不开用户指定的文件。");return;}
     DWORD size,length=GetFinalPathNameByHandleW(file,resolved,_countof(resolved),VOLUME_NAME_DOS),read=0;
+    BY_HANDLE_FILE_INFORMATION info;
+    int expected=!relative||project_text_identity(file,base,0,&info);
     LARGE_INTEGER bytes;
     static char buffer[128000];
-    int ok=length>=7&&length<_countof(resolved)&&!wcsncmp(resolved,L"\\\\?\\",4)&&resolved[5]==L':'&&
+    int ok=expected&&length>=7&&length<_countof(resolved)&&!wcsncmp(resolved,L"\\\\?\\",4)&&resolved[5]==L':'&&
         towupper(resolved[4])==(drive?drive:towupper(runtime_data[0]))&&GetFileType(file)==FILE_TYPE_DISK&&
         GetFileSizeEx(file,&bytes)&&bytes.QuadPart>=0&&bytes.QuadPart<(LONGLONG)sizeof(buffer);
     size=ok?(DWORD)bytes.QuadPart:0;
@@ -82,11 +87,19 @@ static int resident_tool_command(uiCmdCmdId command,uiCmdValue *value,void *data
     resident_tool_queued=0;
     if(!ai_process||!smart_active)return 0;
     resident_tool_inflight=1;
+    if(!wcsncmp(resident_operation,L"FILE_WRITE ",11)){
+        file_write_dispatch(resident_operation+11);
+        return 0;
+    }
     if(request_attachment_turn&&smart_intent==SMART_INTENT_CHAT){
         resident_tool_result(-1,L"本轮为聊天分析。请使用宿主随本轮提供的资料。");
         return 0;
     }
     if(!wcsncmp(resident_operation,L"LIBRARY ",8)){
+        if(smart_diagnostic_budget_exhausted()){
+            resident_tool_result(PRO_TK_BAD_CONTEXT,L"本轮资料查找与读取多次未能核对。根据最新失败阶段确认来源或说明具体卡点。");
+            return 0;
+        }
         company_library_dispatch(resident_operation+8);
         return 0;
     }
@@ -98,6 +111,7 @@ static int resident_tool_command(uiCmdCmdId command,uiCmdValue *value,void *data
         resident_file(resident_operation+5);
         return 0;
     }
+    if(session_window_resident(resident_operation))return 0;
     if(smart_intent==SMART_INTENT_PENDING||smart_intent==SMART_INTENT_CHAT||smart_intent==SMART_INTENT_CLARIFY){
         resident_tool_result(-1,L"本轮先完成意图判断。");
         return 0;
@@ -117,6 +131,10 @@ static int resident_tool_command(uiCmdCmdId command,uiCmdValue *value,void *data
     ModelPlan plan={0};
     int parsed=part_command_parse(resident_operation,&action);
     if(parsed==1){
+        if(!cad_reference_output_allowed(&action)){
+            resident_tool_result(PRO_TK_BAD_CONTEXT,L"本轮用户消息未要求保存或导出。请完成模型的建模与读回核对。");
+            return 0;
+        }
         if(!smart_protocol_allowed(&action)){
             resident_tool_result(-1,smart_operation_block());
             return 0;

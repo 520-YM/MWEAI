@@ -5,7 +5,7 @@
 #include "model_artifact_request.h"
 #include "smart_intent.h"
 #define SMART_MAX_STEPS 100
-#define SMART_MAX_FAILURES_WITHOUT_PROGRESS 2
+#define SMART_MAX_FAILURES_WITHOUT_PROGRESS 3
 #define SMART_MAX_FAILURES 4
 static int smart_has_text(const wchar_t *text,const wchar_t *const *phrases,size_t count){
     size_t i;

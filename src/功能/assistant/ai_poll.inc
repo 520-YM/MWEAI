@@ -39,7 +39,8 @@ static int smart_resolve_intent(const wchar_t *answer){
 static int smart_replan_output(const wchar_t *reason){
     if(smart_readonly&&smart_intent!=SMART_INTENT_PENDING)return 0;
     if(smart_target_model&&smart_steps&&!smart_binding_valid())return 0;
-    if(smart_protocol_replan++)return 0;
+    if(smart_protocol_replan>=2)return 0;
+    smart_protocol_replan++;
     wcsncpy_s(smart_feedback,PART_TEXT_MAX,reason,_TRUNCATE);
     smart_queue_next();
     return 1;
@@ -89,6 +90,11 @@ static void ai_poll(char *dialog,ProUITimerID timer,ProAppData data){
         if(parsed<0){pending_plan.ready=0;memset(&pending_part,0,sizeof(pending_part));save_pending_plan();if(!smart_replan_output(L"上一条协议格式有误或含多条命令。重新根据最新结果给出一条合法的下一步。"))smart_pause(L"AI 返回无效或多条操作，本步未执行",1);return;}
         if(parsed==1){
             ProError queued;
+            if(!cad_reference_output_allowed(&action)){
+                if(!smart_replan_output(L"本轮没有授权保存或导出，请按原需求完成建模或核对现状。"))
+                    smart_reply(L"已保留会话中实际完成的步骤。需要保存或导出时由用户指定。");
+                return;
+            }
             if(!smart_protocol_allowed(&action)){
                 const int delete_block=!smart_readonly&&!wcscmp(action.arg[0],L"FEATURE_DELETE");
                 const wchar_t *reason=delete_block?smart_delete_block_message:smart_operation_block();
@@ -117,7 +123,35 @@ static void ai_poll(char *dialog,ProUITimerID timer,ProAppData data){
         }
     }
     if(smart_handle_stale_permission(visible))return;
-    smart_waiting_for_user=!smart_readonly&&(smart_answer_state(answer)==1||(!smart_answer_state(answer)&&smart_reply_needs_input(visible)));
-    if(smart_failures_without_progress&&!smart_waiting_for_user){if(smart_replan_output(L"原生步骤还没有完成，请核对最近一条失败回执，换用有依据的参照或可用的方法，继续剩余步骤。"))return;smart_pause(L"仍有失败步骤待处理，任务暂停",1);return;}
+    int answer_state=smart_answer_state(answer);
+    smart_waiting_for_user=!smart_readonly&&(answer_state==1||(!answer_state&&smart_reply_needs_input(visible)));
+    if(smart_waiting_for_user&&smart_missing_capability_needs_check(visible)&&
+       smart_replan_output(L"当前还没有实际工具回执。请先调用已登记的读取工具，核对当前模型、库目录或适用协议，拿到证据后再说明缺少的条件。")){
+        smart_waiting_for_user=0;
+        return;
+    }
+    if(smart_waiting_for_user&&smart_cad_pending_count&&!smart_recovery_reviewed&&
+       smart_replan_output(L"先依据当前 Creo 快照、已确认的参照和失败回执核对剩余步骤。"
+           L"能核实就直接按另一种有依据的方法处理；只有真实目标或必要参数仍然缺少时才向用户提问。")){
+        smart_recovery_reviewed=1;
+        smart_waiting_for_user=0;
+        return;
+    }
+    if(smart_four_task_unverified()){
+        smart_waiting_for_user=0;
+        if(smart_progress){
+            smart_pause(L"已保留本次建模。还没有核实所要求的四个居中通孔，为避免重复打孔已暂停",1);
+            return;
+        }
+        if(smart_replan_output(L"还没有确认用户要的四个居中通孔。"
+           L"按实测板面和原有开口选孔距，保持用户指定的孔径，调用 SMT_FLAT4 并以 Creo 回读为准。"))return;
+        smart_pause(L"还没有取得四个居中通孔的成功回执",1);
+        return;
+    }
+    if(!smart_waiting_for_user&&(smart_failures_without_progress||smart_needs_native_result(0))){
+        if(smart_replan_output(L"任务缺少完成回执。先核对现有模型或选中的参照及最近的失败，再从未完成部分继续。确认原操作未写入或已恢复后，换用有实测依据的不同参照或方法。只有缺少当前模型与回执均无法确定的必要数据时才向用户提问。"))return;
+        smart_pause(L"未取得目标操作的成功回执，下面保留已完成步骤和原生原因",1);
+        return;
+    }
     smart_reply(visible[0]?visible:smart_feedback[0]?smart_feedback:L"本轮未收到可显示的结果，请重新发送需求。");
 }

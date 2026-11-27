@@ -37,9 +37,9 @@ static ProError cad_rebuild_bracket(ProMdl source, ProMdl target,
     }
     CAD_REBUILD_STEP(template_empty((ProSolid)target), L"检查新件仍为空白");
     CAD_REBUILD_STEP(ProDirectoryCurrentGet(stage), L"读取 Creo 工作目录");
-    if (!storage_directory_on_drive(stage,storage_data_drive())) {
+    if ((stage[0] != L'E' && stage[0] != L'e') || stage[1] != L':') {
         error = PRO_TK_BAD_CONTEXT;
-        operation = L"检查 Creo 工作目录位于所选数据盘";
+        operation = L"检查 Creo 工作目录位于 E 盘";
         goto done;
     }
     CAD_REBUILD_STEP(replay_source_dependencies(source, &replay->external_total),

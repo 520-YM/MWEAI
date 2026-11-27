@@ -87,9 +87,7 @@ static int working_directory_command(uiCmdCmdId command,uiCmdValue *value,void *
     if(action==WORKDIR_CREATE){
         if(project_name){
             native_set_busy(2);
-            ProPath root;
-            swprintf_s(root,_countof(root),L"%lc:\\project",storage_data_drive());
-            project_create_workdir(root,project_name,message);
+            project_create_workdir(L"E:\\project",project_name,message);
             native_set_busy(0);
             append(message);
         }

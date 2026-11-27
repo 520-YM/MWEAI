@@ -1,34 +1,27 @@
 /* Read-only native library access. This runs on Creo's command thread.
    The caller resolves the source against the authorized library roots. */
 static HANDLE company_library_source(const wchar_t *path,NativeFile *source,PartText *out){
-    if(!path||wcslen(path)>=_countof(source->source)||towupper(path[0])!=storage_data_drive()||
-       path[1]!=L':'||path[2]!=L'\\')return INVALID_HANDLE_VALUE;
-    const wchar_t *leaf=wcsrchr(path,L'\\')+1;
+    wchar_t resolved[MAX_PATH];
+    CompanyAccess access={0};
+    HANDLE file=company_open_path_checked(path,0,resolved,&access);
+    if(file==INVALID_HANDLE_VALUE){
+        company_access_report(out,&access);
+        return file;
+    }
+    const wchar_t *leaf=wcsrchr(resolved,L'\\')+1;
     source->kind=native_file_kind(native_file_suffix(leaf));
     if(source->kind!=ATTACH_PART&&source->kind!=ATTACH_ASSEMBLY){
         part_text_add(out,L"库模型读取支持 Creo PRT、ASM 及其版本文件；STEP 请使用聊天附件分析。");
+        CloseHandle(file);
         return INVALID_HANDLE_VALUE;
     }
-    HANDLE file=CreateFileW(path,FILE_READ_ATTRIBUTES,FILE_SHARE_READ,NULL,
-        OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT,NULL);
-    if(file==INVALID_HANDLE_VALUE)return INVALID_HANDLE_VALUE;
-    BY_HANDLE_FILE_INFORMATION info;
-    wchar_t resolved[MAX_PATH];
-    DWORD length=GetFinalPathNameByHandleW(file,resolved,_countof(resolved),VOLUME_NAME_DOS);
-    int valid=length>=7&&length<_countof(resolved)&&!wcsncmp(resolved,L"\\\\?\\",4)&&!_wcsicmp(resolved+4,path)&&
-        GetFileType(file)==FILE_TYPE_DISK&&GetFileInformationByHandle(file,&info)&&
-        !(info.dwFileAttributes&(FILE_ATTRIBUTE_DIRECTORY|FILE_ATTRIBUTE_REPARSE_POINT))&&
-        GetFileTime(file,NULL,NULL,&source->modified)&&GetFileSizeEx(file,&source->size)&&source->size.QuadPart>0;
-
-    if(valid){
-        wcscpy_s(source->source,_countof(source->source),path);
-        wcscpy_s(source->name,_countof(source->name),leaf);
-        return file;
+    if(!GetFileTime(file,NULL,NULL,&source->modified)||!GetFileSizeEx(file,&source->size)||source->size.QuadPart<=0||
+       wcscpy_s(source->source,_countof(source->source),resolved)||wcscpy_s(source->name,_countof(source->name),leaf)){
+        CloseHandle(file);
+        return INVALID_HANDLE_VALUE;
     }
-    CloseHandle(file);
-    return INVALID_HANDLE_VALUE;
+    return file;
 }
-
 static void company_library_csys(const PartSnapshot *snapshot,PartText *out){
     int listed=0;
     for(int i=0;i<snapshot->features;i++){
@@ -112,36 +105,11 @@ static void company_library_feature_summary(const PartSnapshot *snapshot,PartTex
         part_text_add(out,L"发现失败特征或外部参照错误，不可将此版本作为已验证装配依据。\n");
 }
 
-static ProError company_library_model(const wchar_t *verified_path,wchar_t *report,size_t capacity){
-    if(!report||capacity<128)return PRO_TK_BAD_INPUTS;
-    PartText out={report,capacity,0};
-    NativeFile source={0};
-    ProMdl model=NULL;
-    int loaded=0;
-    report[0]=0;
-    HANDLE source_lock=company_library_source(verified_path,&source,&out);
-    if(source_lock==INVALID_HANDLE_VALUE){
-        if(!report[0])part_text_add(&out,L"未打开所选数据盘上的库模型。请确认该版本仍在指定位置且文件可读取。");
-        return PRO_TK_CANT_OPEN;
-    }
-    if(attachment_release_count>=NATIVE_ATTACHMENT_MAX){
-        CloseHandle(source_lock);
-        part_text_add(&out,L"Creo 正在回收上一批只读模型，请稍后重新读取。");
-        return PRO_TK_E_IN_USE;
-    }
+static ProError company_library_model_readback(ProMdl model,const wchar_t *verified_path,
+    int retrieval_issues,PartText *out){
     PartSnapshot snapshot={0};
-    ProError error=attachment_open_native(&source,&model,&loaded,&out);
-    CloseHandle(source_lock);
-    int retrieval_issues=0;
-    if(!error&&loaded&&model){
-        ProSolidretrievalerrs details=NULL;
-        if(!ProSolidRetrievalErrorsGet((ProSolid)model,&details)&&details){
-            retrieval_issues=1;
-            int count=0;
-            if(!ProSolidRetrievalerrsCount(details,&count)&&count>0)retrieval_issues=count;
-        }
-    }
-    if(!error&&!model)error=PRO_TK_E_NOT_FOUND;
+    ProError error=PRO_TK_NO_ERROR;
+    if(!model)return PRO_TK_E_NOT_FOUND;
     if(!error)error=part_snapshot_take_options(model,&snapshot,1,0);
     if(!error){
         wchar_t overview[1024];
@@ -153,16 +121,48 @@ static ProError company_library_model(const wchar_t *verified_path,wchar_t *repo
             if(snapshot.has_outline&&ad_near(snapshot.outline[0],snapshot.outline[1],1e-10))snapshot.has_outline=0;
         }
         part_snapshot_format_basic(&snapshot,overview,_countof(overview));
-        part_text_add(&out,L"已读取磁盘库模型（只读）：%ls\n%ls",verified_path,overview);
+        part_text_add(out,L"已读取磁盘库模型（只读）：%ls\n%ls",verified_path,overview);
         if(retrieval_issues)
-            part_text_add(&out,L"Creo 载入时记录 %d 项问题，未核实的组件或外部参照不可用于定位。\n",retrieval_issues);
-        part_text_add(&out,L"\n安装参照均为库模型自身坐标。模型重开、换版或装入组件后，需重新核对对应的参照 ID。\n");
-        company_library_csys(&snapshot,&out);
-        if(snapshot.type==PRO_MDL_ASSEMBLY)company_library_assembly_refs(&snapshot,&out);
-        else company_library_part_refs(&snapshot,&out);
-        company_library_feature_summary(&snapshot,&out);
+            part_text_add(out,L"Creo 载入时记录 %d 项问题，未核实的组件或外部参照不可用于定位。\n",retrieval_issues);
+        part_text_add(out,L"\n安装参照均为库模型自身坐标。模型重开、换版或装入组件后，需重新核对对应的参照 ID。\n");
+        company_library_csys(&snapshot,out);
+        if(snapshot.type==PRO_MDL_ASSEMBLY)company_library_assembly_refs(&snapshot,out);
+        else company_library_part_refs(&snapshot,out);
+        company_library_feature_summary(&snapshot,out);
     }
     part_snapshot_clear(&snapshot);
+    return error;
+}
+
+static ProError company_library_model(const wchar_t *verified_path,wchar_t *report,size_t capacity){
+    if(!report||capacity<128)return PRO_TK_BAD_INPUTS;
+    PartText out={report,capacity,0};
+    NativeFile source={0};
+    ProMdl model=NULL;
+    int loaded=0;
+    report[0]=0;
+    HANDLE source_lock=company_library_source(verified_path,&source,&out);
+    if(source_lock==INVALID_HANDLE_VALUE){
+        if(!report[0])part_text_add(&out,L"未打开注册数据盘上的库模型。请确认该版本仍在指定位置且文件可读取。");
+        return PRO_TK_CANT_OPEN;
+    }
+    if(attachment_release_count>=NATIVE_ATTACHMENT_MAX){
+        CloseHandle(source_lock);
+        part_text_add(&out,L"Creo 正在回收上一批只读模型，请稍后重新读取。");
+        return PRO_TK_E_IN_USE;
+    }
+    ProError error=attachment_open_native(&source,&model,&loaded,&out);
+    CloseHandle(source_lock);
+    int retrieval_issues=0;
+    if(!error&&loaded&&model){
+        ProSolidretrievalerrs details=NULL;
+        if(!ProSolidRetrievalErrorsGet((ProSolid)model,&details)&&details){
+            retrieval_issues=1;
+            int count=0;
+            if(!ProSolidRetrievalerrsCount(details,&count)&&count>0)retrieval_issues=count;
+        }
+    }
+    if(!error)error=company_library_model_readback(model,verified_path,retrieval_issues,&out);
     if(loaded&&model){
         int known=0;
         for(int i=0;i<attachment_release_count;i++)if(attachment_release[i]==model)known=1;

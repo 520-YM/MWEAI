@@ -1,4 +1,4 @@
-﻿typedef struct {
+typedef struct {
     const wchar_t *grade,*die;
     double thickness,angle,height,contact,length;
     int found;
@@ -26,6 +26,7 @@ typedef struct {
     ProVector axis;
     double heights[8],contacts[8];
     int faces[8],count;
+    ProVector tangent_start[8],tangent_end[8],normal[8];
 } SmyFlangeScan;
 
 static ProError smy_dfm_edge(ProEdge edge,ProError status,ProAppData context){
@@ -69,6 +70,9 @@ static ProError smy_dfm_edge(ProEdge edge,ProError status,ProAppData context){
     if(error)return error;
     int i=scan->count++;
     scan->faces[i]=plane.id;
+    memcpy(scan->tangent_start[i],a,sizeof(ProVector));
+    memcpy(scan->tangent_end[i],b,sizeof(ProVector));
+    memcpy(scan->normal[i],plane.normal,sizeof(ProVector));
     scan->heights[i]=height;
     scan->contacts[i]=search.matches?search.edge.length:0;
     return PRO_TK_NO_ERROR;

@@ -36,6 +36,32 @@ static int vent_test(uiCmdCmdId id,uiCmdValue *value,void *data){
     if(!error)error=CMD(0,NULL,L"DATUM_CSYS %ls VENT_AT CSYS:PRT_CSYS_DEF 0 0 20 0 0 0",name); \
     if(error){trace("vent fixture error",error);panel_check(0,"create ventilation fixture");goto done;}}while(0)
 #define VOLUME(expected) panel_check(fabs(volume(model)-(expected))<0.03,"independently verified ventilation volume")
+    {
+        ModelPlan plate={0,160,120,1.5,0,1};
+        const char *stage="sheet ventilation fixture";
+        error=model_create(&plate,name,&stage);
+        if(!error)error=ProMdlnameInit(name,PRO_MDL_PART,&model);
+        if(!error)error=panel_activate(model);
+        PanelFaceFixture top={model,1.5,0};
+        if(!error)error=ProSolidSurfaceVisit((ProSolid)model,panel_pick_top,NULL,&top);
+        if(!error&&!top.id)error=PRO_TK_E_NOT_FOUND;
+        if(!error)error=CMD(0,NULL,L"DATUM_CSYS %ls VENT_AT CSYS:PRT_CSYS_DEF 0 0 1.5 0 0 0",name);
+        if(!error)error=CMD(0,NULL,L"SMT_CONVERT %ls TO_SMT SURFACE:%d 1.5",name,top.id);
+        top.id=0;
+        if(!error)error=ProSolidSurfaceVisit((ProSolid)model,panel_pick_top,NULL,&top);
+        if(!error&&!top.id)error=PRO_TK_E_NOT_FOUND;
+        panel_check(!error,"1.5 mm sheet metal plate and physical installation face");
+        if(error)goto done;
+        f.top=top.id;
+        error=VENT(0,L"6 个贯穿轮廓",L"ROUND",L"SIX_ROUND",L"80 60 1.5 2 3 40 40 5.4 GRID");
+        ProFeature cut;
+        ProFeattype type;
+        int verified=!error&&fabs(volume(model)-(28800-6*2.7*2.7*AS_PI*1.5))<0.01&&
+            !ProModelitemByNameInit(model,PRO_FEATURE,L"SIX_ROUND",(ProModelitem *)&cut)&&
+            !ProFeatureTypeGet(&cut,&type)&&type==PRO_FEAT_CUT_SMT;
+        panel_check(verified,"2x3 D5.4 pitch 40 native sheet metal cut and independent volume");
+        trace("VENT_SIX_GRID_PASS",verified);
+    }
     MAKE();
     VENT(1,NULL,L"ROUND",L"TOO_CLOSE",L"40 30 20 3 4 5 10 5 GRID");
     VENT(0,L"12 个贯穿轮廓",L"ROUND",L"VENT_CIRCLES",L"40 30 20 3 4 10 8 5 STAGGER");

@@ -1,20 +1,11 @@
 {
-  "version": "0.23.0-preview.9",
-  "previous_release": "0.23.0-preview.7",
-  "attempted": true,
-  "exit_code": 0,
+  "version": "0.23.0-preview.10",
+  "previous_release": "0.23.0-preview.9",
+  "local_baseline": "0.23.0-local.packaging.31",
   "unlocked": true,
-  "method": "PTC official protk_unlock",
-  "requires_toolkit_development_license": false,
   "target_creo": "10.0.0.0",
-  "cross_machine_verified": false,
-  "binary_sha256": "689dea42fe29395e5dd3240ae9c89cf45506657752f98ce27a84e62c82a89f02",
-  "noninteractive_suites": 12,
-  "native_selectable_storage_suites": 3,
-  "payload_policy": "Release package contains source, tools, resources, tests, guides and the verified DLL.",
-  "validation": "docs/releases/0.23.0-preview.9.md",
-  "release_notes": "docs/releases/0.23.0-preview.9.md",
-  "method_library": "Persistent assembly and native part learning with user-selected data drive, example cases and request-adapted recall.",
-  "method_library_validation": "Independent Creo 10 sessions persisted and reused an assembly location and editable sheet-metal plate via the ordinary Codex conversation.",
-  "product_name": "MWEAI"
+  "binary_sha256": "b32ae0021fbf9c96fc8128d558eb8e74cb3cbf99cc2874135e1e6cb8ca15f37c",
+  "background_binary_sha256": "244a37c5d622f63b9403739a2ca8abf10f338fdefee6a4a3d4195ba7ac685c48",
+  "release_notes": "docs/releases/0.23.0-preview.10.md",
+  "payload_policy": "MWEAI software, source, tools, resources and guides. CAD jobs and user data are external."
 }

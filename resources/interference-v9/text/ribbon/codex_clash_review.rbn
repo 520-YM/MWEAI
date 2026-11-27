@@ -1,0 +1,300 @@
+#UGC:2 NEUTRAL 1534 440 800 0 0 15 3200 2010310 00000000 \
+#- VERS 0 0                                                          \
+#- HOST                                                              \
+#- LINK                                                              \
+#- DBID                                                              \
+#- REVS 0,                                                           \
+#- RELL 0,                                                           \
+#- UOBJ_ID 0 0 0                                                     \
+#- MACH                                                              \
+#-END_OF_UGC_HEADER
+#Pro/ENGINEER  TM  Version (c) 2010 by Parametric Technology Corporation  All Rights Reserved.
+0 RbnDBData ->
+1 groupList [1]
+2 groupList 
+3 ChildUnion(RbnDBGroup) ->
+4 RbnDBInheritContainer 
+5 mName usrGrp_CodexClashReview
+5 mType 12
+5 mLabel Codex Clash Review
+5 mAncestor 
+5 mKeyTip 
+5 mCustom 1
+5 Attributes 
+5 containerChildrenArray [6]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBCommand) ->
+8 mName CodexClashAnalyze
+8 mType 1
+8 Attributes 
+9 mUiAttribs [1]
+10 mUiAttribs ->
+11 mKey 6
+11 mValue SmallTextOnly
+8 mComponentClass CodexClashAnalyze
+8 mColumns 0
+6 containerChildrenArray 
+7 ChildUnion(RbnDBCommand) ->
+8 mName CodexClashShowAll
+8 mType 1
+8 Attributes 
+9 mUiAttribs [1]
+10 mUiAttribs ->
+11 mKey 6
+11 mValue SmallTextOnly
+8 mComponentClass CodexClashShowAll
+8 mColumns 0
+6 containerChildrenArray 
+7 ChildUnion(RbnDBCommand) ->
+8 mName CodexClashPrevious
+8 mType 1
+8 Attributes 
+9 mUiAttribs [1]
+10 mUiAttribs ->
+11 mKey 6
+11 mValue SmallTextOnly
+8 mComponentClass CodexClashPrevious
+8 mColumns 0
+6 containerChildrenArray 
+7 ChildUnion(RbnDBCommand) ->
+8 mName CodexClashNext
+8 mType 1
+8 Attributes 
+9 mUiAttribs [1]
+10 mUiAttribs ->
+11 mKey 6
+11 mValue SmallTextOnly
+8 mComponentClass CodexClashNext
+8 mColumns 0
+6 containerChildrenArray 
+7 ChildUnion(RbnDBCommand) ->
+8 mName CodexClashClear
+8 mType 1
+8 Attributes 
+9 mUiAttribs [1]
+10 mUiAttribs ->
+11 mKey 6
+11 mValue SmallTextOnly
+8 mComponentClass CodexClashClear
+8 mColumns 0
+6 containerChildrenArray 
+7 ChildUnion(RbnDBCommand) ->
+8 mName CodexClashFilters
+8 mType 1
+8 Attributes 
+9 mUiAttribs [1]
+10 mUiAttribs ->
+11 mKey 6
+11 mValue SmallTextOnly
+8 mComponentClass CodexClashFilters
+8 mColumns 0
+4 mToolLauncher 
+1 pageList [4]
+2 pageList 
+3 ChildUnion(RbnDBPage) ->
+4 RbnDBInheritContainer 
+5 mName page_CodexClash@prt_main_adb_cat
+5 mType 11
+5 mLabel Codex Clash Analysis
+5 mAncestor 
+5 mKeyTip 
+5 mCustom 1
+5 Attributes 
+5 containerChildrenArray [1]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBGroupRef) ->
+8 mName usrGrp_CodexClashReview
+8 mType 15
+8 Attributes
+2 pageList 
+3 ChildUnion(RbnDBPage) ->
+4 RbnDBInheritContainer 
+5 mName page_CodexClash@prt_smt_main_adb_cat
+5 mType 11
+5 mLabel Codex Clash Analysis
+5 mAncestor 
+5 mKeyTip 
+5 mCustom 1
+5 Attributes 
+5 containerChildrenArray [1]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBGroupRef) ->
+8 mName usrGrp_CodexClashReview
+8 mType 15
+8 Attributes
+2 pageList 
+3 ChildUnion(RbnDBPage) ->
+4 RbnDBInheritContainer 
+5 mName page_CodexClash@asm_main_adb_cat
+5 mType 11
+5 mLabel Codex Clash Analysis
+5 mAncestor 
+5 mKeyTip 
+5 mCustom 1
+5 Attributes 
+5 containerChildrenArray [1]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBGroupRef) ->
+8 mName usrGrp_CodexClashReview
+8 mType 15
+8 Attributes
+2 pageList 
+3 ChildUnion(RbnDBPage) ->
+4 RbnDBInheritContainer 
+5 mName page_CodexClash@drw_main_adb_cat
+5 mType 11
+5 mLabel Codex Clash Analysis
+5 mAncestor 
+5 mKeyTip 
+5 mCustom 1
+5 Attributes 
+5 containerChildrenArray [1]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBGroupRef) ->
+8 mName usrGrp_CodexClashReview
+8 mType 15
+8 Attributes 
+1 ribbonList [4]
+2 ribbonList 
+3 ChildUnion(RbnDBRibbon) ->
+4 RbnDBContainer 
+5 mName prt_main_adb_cat
+5 mType 10
+5 Attributes 
+5 containerChildrenArray [2]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBPosition) ->
+8 mName EOF
+8 mType 7
+8 Attributes 
+8 mIndex -1
+6 containerChildrenArray 
+7 ChildUnion(RbnDBPageRef) ->
+8 mName page_CodexClash@prt_main_adb_cat
+8 mType 16
+8 Attributes 
+4 mLabel Design Part
+4 mDescription
+2 ribbonList 
+3 ChildUnion(RbnDBRibbon) ->
+4 RbnDBContainer 
+5 mName prt_smt_main_adb_cat
+5 mType 10
+5 Attributes 
+5 containerChildrenArray [2]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBPosition) ->
+8 mName EOF
+8 mType 7
+8 Attributes 
+8 mIndex -1
+6 containerChildrenArray 
+7 ChildUnion(RbnDBPageRef) ->
+8 mName page_CodexClash@prt_smt_main_adb_cat
+8 mType 16
+8 Attributes 
+4 mLabel Sheetmetal Part
+4 mDescription
+2 ribbonList 
+3 ChildUnion(RbnDBRibbon) ->
+4 RbnDBContainer 
+5 mName asm_main_adb_cat
+5 mType 10
+5 Attributes 
+5 containerChildrenArray [2]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBPosition) ->
+8 mName EOF
+8 mType 7
+8 Attributes 
+8 mIndex -1
+6 containerChildrenArray 
+7 ChildUnion(RbnDBPageRef) ->
+8 mName page_CodexClash@asm_main_adb_cat
+8 mType 16
+8 Attributes 
+4 mLabel Design Assembly
+4 mDescription
+2 ribbonList 
+3 ChildUnion(RbnDBRibbon) ->
+4 RbnDBContainer 
+5 mName drw_main_adb_cat
+5 mType 10
+5 Attributes 
+5 containerChildrenArray [2]
+6 containerChildrenArray 
+7 ChildUnion(RbnDBPosition) ->
+8 mName EOF
+8 mType 7
+8 Attributes 
+8 mIndex -1
+6 containerChildrenArray 
+7 ChildUnion(RbnDBPageRef) ->
+8 mName page_CodexClash@drw_main_adb_cat
+8 mType 16
+8 Attributes 
+4 mLabel Drawing
+4 mDescription
+1 modeList [4]
+2 modeList 
+3 ChildUnion(RbnDBMode) ->
+4 RbnDBContainer 
+5 mName prt_main_adb_cat
+5 mType 9
+5 Attributes 
+4 mRibbon prt_main_adb_cat
+4 mLabel Design Part
+4 mDescription
+2 modeList 
+3 ChildUnion(RbnDBMode) ->
+4 RbnDBContainer 
+5 mName prt_smt_main_adb_cat
+5 mType 9
+5 Attributes 
+4 mRibbon prt_smt_main_adb_cat
+4 mLabel Sheetmetal Part
+4 mDescription
+2 modeList 
+3 ChildUnion(RbnDBMode) ->
+4 RbnDBContainer 
+5 mName asm_main_adb_cat
+5 mType 9
+5 Attributes 
+4 mRibbon asm_main_adb_cat
+4 mLabel Design Assembly
+4 mDescription
+2 modeList 
+3 ChildUnion(RbnDBMode) ->
+4 RbnDBContainer 
+5 mName drw_main_adb_cat
+5 mType 9
+5 Attributes 
+4 mRibbon drw_main_adb_cat
+4 mLabel Drawing
+4 mDescription
+0 Toolbar_io ->
+1 msg_win_on_top -1
+1 sec_win_size -1
+1 tree_placement -1
+1 same_height_check -1
+1 tree_width -1.
+1 tree_height -1.
+1 webUI_data ->
+2 show_navigation_tb 1
+2 show_address_tb 1
+2 animate_open_close 0
+2 show_history 0
+2 show_search 0
+2 auto_loading 1
+2 steps 5
+2 width_browser -1.
+2 width_tabs -1.
+2 tabs_placement 0
+1 igt_alignment 0
+1 acc_win_igt_alignment 0
+0 IgtQat_io ->
+1 igt_icon_size 20
+1 igt_acc_win_icon_size 20
+1 qat_position 1
+0 mapkey_io ->
+#END_OF_UGC

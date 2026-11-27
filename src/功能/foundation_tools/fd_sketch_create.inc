@@ -4,6 +4,34 @@ static ProError fd_sketch_rolled_back_error;
 #ifdef BWTL_SKETCH_RECOVERY_TEST
 static int fd_test_first_sketch_failure;
 #endif
+static void fd_sketch_failure(const FdTxn *tx,const PartCommand *cmd,const wchar_t *plane,
+    const wchar_t *orientation,int shape,PartText *report){
+    const char *stage=tx->stage;
+    if(!stage)return;
+    part_text_add(report,L"\n失败原因：");
+    if(!strcmp(stage,"resolve sketch plane"))
+        part_text_add(report,L"Creo 没找到草绘面 %ls，或该参照在当前零件中不可用",plane);
+    else if(!strcmp(stage,"resolve sketch orientation"))
+        part_text_add(report,L"Creo 没找到定向面 %ls，或该参照在当前零件中不可用",orientation);
+    else if(!strcmp(stage,"read sketch reference normals"))
+        part_text_add(report,L"Creo 无法把 %ls 和 %ls 同时读成可用于定向的平面",plane,orientation);
+    else if(!strcmp(stage,"parallel sketch reference planes"))
+        part_text_add(report,L"草绘面 %ls 和定向面 %ls 平行，无法据此确定草绘坐标方向",plane,orientation);
+    else if(strstr(stage,"shape_append")||strstr(stage,"geometry and dimensions")||
+            strstr(stage,"as_add_line")||strstr(stage,"rejected sketch dimension")||strstr(stage,"path-end circle"))
+        part_text_add(report,L"Creo 在添加 %ls 草绘轮廓或它的尺寸时失败，草绘面 %ls，定向面 %ls",
+            cmd->arg[shape],plane,orientation);
+    else if(strstr(stage,"section_solve")||strstr(stage,"solve referenced sketch"))
+        part_text_add(report,L"轮廓已提交给 Creo，%ls 草绘的形状和约束没有解出来",cmd->arg[shape]);
+    else if(strstr(stage,"fd_verify")||strstr(stage,"verify sketch"))
+        part_text_add(report,L"Creo 返回了草绘，但插件未能同时核实重生成状态、参照和尺寸");
+    else
+        part_text_add(report,L"未能在 %ls 上建立关联草绘，定向参照为 %ls，具体发生在原生阶段 %hs",
+            plane,orientation,stage);
+    part_text_add(report,L"。");
+}
+
+
 static ProError fd_sketch_create_at(const PartCommand *cmd,ProMdl model,const double *center,wchar_t *report,size_t capacity){
     fd_sketch_rolled_back_model=NULL;
     fd_sketch_rolled_back_error=PRO_TK_NO_ERROR;
@@ -51,7 +79,11 @@ done:
         fd_sketch_rolled_back_model=model;
         fd_sketch_rolled_back_error=e;
     }
-    if(e)swprintf_s(report,capacity,L"关联草绘未完成：%hs，错误码%d；%ls，未保存。",tx.stage,e,tx.rollback_ok?L"未创建或已核对移除本次新增特征":L"回滚未能验证，请检查模型");
+    if(e){
+        swprintf_s(report,capacity,L"关联草绘未完成：%hs，错误码%d；%ls，未保存。",tx.stage,e,tx.rollback_ok?L"未创建或已核对移除本次新增特征":L"回滚未能验证，请检查模型");
+        PartText explanation={report,capacity,0};
+        fd_sketch_failure(&tx,cmd,plane,orient,shape_start,&explanation);
+    }
     return e;
 #undef FS_TRY
 }

@@ -1,4 +1,241 @@
 [
+  {"symbol":"background_submit","kind":"feature-group","file":"src/功能/background_creo/background_submit.inc"},
+  {"symbol":"make_models","kind":"feature-group","file":"src/功能/background_creo/floorstand_worker.c"},
+  {"symbol":"packaging_build","original":"src/功能/packaging/packaging_design.inc","kind":"feature-group","file":"src/功能/packaging/packaging_design.inc"},
+  {
+    "symbol": "direct_thread_read",
+    "original": "src/功能/local_control/pressfit_direct_thread.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/pressfit_direct_thread.inc"
+  },
+  {
+    "symbol": "pw_execute",
+    "original": "src/功能/local_control/pressfit_workspace_commands.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/pressfit_workspace_commands.inc"
+  },
+  {
+    "symbol": "pw_edit",
+    "original": "src/功能/local_control/pressfit_workspace_groups.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/pressfit_workspace_groups.inc"
+  },
+  {
+    "symbol": "pw_store_method",
+    "original": "src/功能/local_control/pressfit_workspace_methods.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/pressfit_workspace_methods.inc"
+  },
+  {
+    "symbol": "pressfit_workspace_selected",
+    "original": "src/功能/local_control/pressfit_workspace_selection.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/pressfit_workspace_selection.inc"
+  },
+  {
+    "symbol": "workspace_pressfit_recommend",
+    "original": "src/功能/local_control/pressfit_workspace_hardware.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/pressfit_workspace_hardware.inc"
+  },
+  {
+    "symbol": "workspace_pressfit_exact_spec",
+    "original": "src/功能/local_control/pressfit_workspace_spec.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/pressfit_workspace_spec.inc"
+  },
+  {
+    "symbol": "pressfit_delivery_export",
+    "original": "src/功能/local_control/pressfit_workspace_delivery.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/pressfit_workspace_delivery.inc"
+  },
+  {
+    "symbol": "panel_six_sites",
+    "original": "src/功能/local_control/panel_six_sites.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/panel_six_sites.inc"
+  },
+  {
+    "symbol": "panel_multi_revise",
+    "original": "src/功能/local_control/panel_multi_followup.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/panel_multi_followup.inc"
+  },
+  {
+    "symbol": "panel_flow_begin",
+    "original": "src/功能/local_control/panel_flow.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/panel_flow.inc"
+  },
+  {
+    "symbol": "panel_flow_parse",
+    "original": "src/功能/local_control/panel_flow_request.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/panel_flow_request.inc"
+  },
+  {
+    "symbol": "local_control_pair_begin",
+    "original": "src/功能/local_control/local_control_pair.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/local_control_pair.inc"
+  },
+  {
+    "symbol": "local_control_pressfit",
+    "original": "src/功能/local_control/local_control_pressfit.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/local_control_pressfit.inc"
+  },
+  {
+    "symbol": "local_control_start",
+    "original": "src/功能/local_control/local_control_transport.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/local_control_transport.inc"
+  },
+  {
+    "symbol": "local_control_dispatch",
+    "original": "src/功能/local_control/local_control_actions.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/local_control_actions.inc"
+  },
+  {
+    "symbol": "bwtl_save_guarded",
+    "original": "src/功能/local_control/bwtl_save_guard.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/bwtl_save_guard.inc"
+  },
+  {
+    "symbol": "markup_assembly_pick",
+    "original": "src/功能/screenshot_markup/markup_assembly_context.inc",
+    "kind": "feature-group",
+    "file": "src/功能/screenshot_markup/markup_assembly_context.inc"
+  },
+  {
+    "symbol": "grouped_pressfit_install",
+    "original": "src/功能/local_control/grouped_pressfit.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/grouped_pressfit.inc"
+  },
+  {
+    "symbol": "group_pressfit_geometry",
+    "original": "src/功能/local_control/grouped_pressfit_geometry.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/grouped_pressfit_geometry.inc"
+  },
+  {
+    "symbol": "grouped_pressfit_plan",
+    "original": "src/功能/local_control/grouped_pressfit_request.inc",
+    "kind": "feature-group",
+    "file": "src/功能/local_control/grouped_pressfit_request.inc"
+  },
+  {
+    "symbol": "markup_assembly_action",
+    "original": "src/功能/screenshot_markup/markup_assembly_actions.inc",
+    "kind": "feature-group",
+    "file": "src/功能/screenshot_markup/markup_assembly_actions.inc"
+  },
+  {
+    "symbol": "markup_create_profiles",
+    "original": "src/功能/screenshot_markup/markup_part_create.inc",
+    "kind": "feature-group",
+    "file": "src/功能/screenshot_markup/markup_part_create.inc"
+  },
+  {
+    "symbol": "markup_prepare_preserved",
+    "original": "src/功能/screenshot_markup/markup_constraints.inc",
+    "kind": "feature-group",
+    "file": "src/功能/screenshot_markup/markup_constraints.inc"
+  },
+  {
+    "symbol": "markup_followup",
+    "original": "src/功能/screenshot_markup/markup_followup.inc",
+    "kind": "feature-group",
+    "file": "src/功能/screenshot_markup/markup_followup.inc"
+  },
+  {
+    "symbol": "markup_editor_relayout",
+    "original": "src/功能/screenshot_markup/markup_chrome.inc",
+    "kind": "feature-group",
+    "file": "src/功能/screenshot_markup/markup_chrome.inc"
+  },
+  {
+    "symbol": "request_assess",
+    "original": "src/功能/assistant/request_assessment.inc",
+    "kind": "feature-group",
+    "file": "src/功能/assistant/request_assessment.inc"
+  },
+  {
+    "symbol": "cad_u_learn_recipe",
+    "original": "src/功能/ai_drawing/ai_cad_u_method.inc",
+    "kind": "feature-group",
+    "file": "src/功能/ai_drawing/ai_cad_u_method.inc"
+  },
+  {
+    "symbol": "ax_session_inventory",
+    "original": "src/功能/assembly/ax_session_windows.inc",
+    "kind": "feature-group",
+    "file": "src/功能/assembly/ax_session_windows.inc"
+  },
+  {
+    "symbol": "session_window_chat",
+    "original": "src/功能/assistant/run_local.inc",
+    "kind": "feature-group",
+    "file": "src/功能/assistant/session_window_chat.inc"
+  },
+  {
+    "symbol": "smart_direct_vent_request",
+    "original": "src/功能/assistant/ai_send.inc",
+    "kind": "feature-group",
+    "file": "src/功能/assistant/vent_request_policy.inc"
+  },
+  {
+    "symbol": "fastener_pressfit_short_nut",
+    "original": "src/功能/company_design/pressfit_chat.inc",
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_natural.inc"
+  },
+  {
+    "symbol": "pressfit_acceptance_lookup",
+    "original": "src/功能/company_design/fastener_chat.inc",
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_acceptance.inc"
+  },
+  {
+    "symbol": "pressfit_read_exact",
+    "original": "src/功能/company_design/fastener_chat.inc",
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_library.inc"
+  },
+  {
+    "symbol": "fastener_pressfit_place",
+    "original": "src/功能/company_design/fastener_chat.inc",
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_placement.inc"
+  },
+  {
+    "symbol": "fastener_pressfit_chat",
+    "original": "src/功能/company_design/fastener_chat.inc",
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_chat.inc"
+  },
+  {
+    "symbol": "smart_step_stage",
+    "original": "src/smart_session.h",
+    "kind": "feature-group",
+    "file": "src/功能/assistant/smart_step_stage.inc"
+  },
+  {
+    "symbol": "project_text_write",
+    "original": "src/功能/assistant/resident_tool.inc",
+    "kind": "feature-group",
+    "file": "src/功能/project_files/project_text_write.inc"
+  },
+  {
+    "symbol": "file_write_rule_apply",
+    "original": "src/功能/assistant/run_local.inc",
+    "kind": "feature-group",
+    "file": "src/功能/modeling_rules/file_write_rule_intent.inc"
+  },
   {
     "symbol": "fastener_save_project",
     "original": "src/功能/assistant/native_company_action.inc",
@@ -341,6 +578,21 @@
     "symbol": "markup_take",
     "file": "src/功能/screenshot_markup/markup_capture.inc",
     "original": "src/assistant.c",
+    "kind": "function"
+  },
+  {
+    "symbol": "markup_apply_collective",
+    "file": "src/功能/screenshot_markup/markup_apply.inc",
+    "kind": "function"
+  },
+  {
+    "symbol": "markup_bore_read",
+    "file": "src/功能/screenshot_markup/markup_readback.inc",
+    "kind": "function"
+  },
+  {
+    "symbol": "markup_face_at",
+    "file": "src/功能/screenshot_markup/markup_faces.inc",
     "kind": "function"
   },
   {
@@ -4129,5 +4381,198 @@
     "original": "src/功能/company_design/fastener_chat.inc",
     "kind": "feature-group",
     "file": "src/功能/company_design/fastener_bso_placement.inc"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_chat_context.inc",
+    "original": "src/功能/company_design/pressfit_chat_context.inc",
+    "symbol": "pressfit_chat_context"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_chat_batch.inc",
+    "original": "src/功能/company_design/pressfit_chat_batch.inc",
+    "symbol": "pressfit_chat_groups"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_chat_grammar.inc",
+    "original": "src/功能/company_design/pressfit_chat_grammar.inc",
+    "symbol": "pressfit_chat_lead"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_hole_resize.inc",
+    "original": "src/功能/company_design/pressfit_hole_resize.inc",
+    "symbol": "pressfit_chat_resize_hole"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_targets.inc",
+    "original": "src/功能/company_design/pressfit_targets.inc",
+    "symbol": "fastener_pressfit_short_sites"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_selection.inc",
+    "original": "src/功能/company_design/pressfit_selection.inc",
+    "symbol": "fastener_pressfit_selection_workbench"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_example.inc",
+    "original": "src/功能/company_design/pressfit_example.inc",
+    "symbol": "fastener_pressfit_installed_example"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_site_audit.inc",
+    "original": "src/功能/company_design/pressfit_site_audit.inc",
+    "symbol": "fastener_pressfit_site_preflight"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_checks.inc",
+    "original": "src/功能/company_design/pressfit_checks.inc",
+    "symbol": "fastener_pressfit_postfit"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_batch.inc",
+    "original": "src/功能/company_design/pressfit_batch.inc",
+    "symbol": "fastener_pressfit_place_batch"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_batch_audit.inc",
+    "original": "src/功能/company_design/pressfit_batch_audit.inc",
+    "symbol": "fastener_pressfit_batch_audit"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_journal.inc",
+    "original": "src/功能/company_design/pressfit_journal.inc",
+    "symbol": "pressfit_checkpoint_start"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_method.inc",
+    "original": "src/功能/company_design/pressfit_method.inc",
+    "symbol": "pressfit_method_learn"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_specification.inc",
+    "original": "src/功能/company_design/pressfit_specification.inc",
+    "symbol": "pressfit_specification_chat"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_evidence.inc",
+    "original": "src/功能/company_design/pressfit_evidence.inc",
+    "symbol": "pressfit_evidence_hash"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_preferences.inc",
+    "original": "src/功能/company_design/pressfit_preferences.inc",
+    "symbol": "pressfit_preference_save"
+  },
+  {
+    "kind": "feature-group",
+    "file": "src/功能/company_design/pressfit_evidence.inc",
+    "original": "src/功能/company_design/pressfit_evidence.inc",
+    "symbol": "pressfit_preserve_registered_ambiguity"
+  },
+  {
+    "original": "src/功能/ai_drawing/ai_cad_context.inc",
+    "file": "src/功能/ai_drawing/ai_cad_context.inc",
+    "symbol": "cad_requirement_prompt",
+    "kind": "feature-group"
+  },
+  {
+    "original": "src/功能/ai_drawing/ai_cad_u_chat.inc",
+    "file": "src/功能/ai_drawing/ai_cad_u_chat.inc",
+    "symbol": "cad_u_chat",
+    "kind": "feature-group"
+  },
+  {
+    "original": "src/功能/sheetmetal/u_reinforcement.inc",
+    "file": "src/功能/sheetmetal/u_reinforcement.inc",
+    "symbol": "bwtl_u_reinforcement",
+    "kind": "feature-group"
+  },
+  {
+    "original": "src/功能/assistant/default_part_chat.inc",
+    "file": "src/功能/assistant/default_part_chat.inc",
+    "symbol": "default_part_begin_request",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "company_device_chat",
+    "file": "src/功能/company_design/company_device_mount.inc",
+    "original": "src/功能/company_design/company_device_mount.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "bwtl_delivery_chat",
+    "file": "src/功能/company_design/company_delivery_bundle.inc",
+    "original": "src/功能/company_design/company_delivery_bundle.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "chat_task_record_pair",
+    "file": "src/功能/assistant/task_context.inc",
+    "original": "src/功能/assistant/task_context.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "chat_followup_activate",
+    "file": "src/功能/assistant/continuation_route.inc",
+    "original": "src/功能/assistant/continuation_route.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "company_pair_number_chat",
+    "file": "src/功能/assembly_naming/company_pair_number.inc",
+    "original": "src/功能/assembly_naming/company_pair_number.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "bwtl_live_emit",
+    "file": "src/功能/local_control/live_task_events.inc",
+    "original": "src/功能/local_control/live_task_events.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "local_control_model_action",
+    "file": "src/功能/local_control/local_control_model.inc",
+    "original": "src/功能/local_control/local_control_model.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "drawing_number_dispatch",
+    "file": "src/功能/assembly_naming/drawing_number_batch.inc",
+    "original": "src/功能/assembly_naming/drawing_number_batch.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "local_control_com_command",
+    "file": "src/功能/local_control/local_control_com.inc",
+    "original": "src/功能/local_control/local_control_com.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "bwtl_resident_event_record",
+    "file": "src/功能/local_control/resident_events.inc",
+    "original": "src/功能/local_control/resident_events.inc",
+    "kind": "feature-group"
+  },
+  {
+    "symbol": "local_control_com_auto_start",
+    "file": "src/功能/local_control/local_control_com_startup.inc",
+    "original": "src/功能/local_control/local_control_com_startup.inc",
+    "kind": "feature-group"
   }
 ]
+

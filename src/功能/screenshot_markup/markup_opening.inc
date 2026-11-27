@@ -84,7 +84,8 @@ static int markup_opening_project(MarkupProjection *map,ProSection section,const
     }
     ProPoint3d mid={(low[0]+high[0])*0.5,(low[1]+high[1])*0.5,0},world;
     Pro2dPnt center;
-    if(ProPntTrfEval(mid,frame,world)||!markup_project(map,world,center))return 0;
+    if(ProPntTrfEval(mid,frame,world)||!markup_project(map,world,center)||
+       (map->assembly&&!markup_assembly_visible(map,world)))return 0;
     ProRay ray;
     for(int i=0;i<3;i++){
         ray.start_point[i]=world[i]+map->span*map->toward_viewer[i];
@@ -97,6 +98,7 @@ static int markup_opening_project(MarkupProjection *map,ProSection section,const
     for(int i=0;i<4;i++){
         ProPoint3d corner={(i==1||i==2)?high[0]:low[0],i>=2?high[1]:low[1],0};
         if(ProPntTrfEval(corner,frame,world)||!markup_project(map,world,opening->corners[i]))return 0;
+        memcpy(opening->native_corners[i],world,sizeof(world));
     }
     int visible=0;
     for(int i=0;i<4;i++){
@@ -133,6 +135,7 @@ static ProError markup_opening_feature(ProFeature *feature,ProError status,ProAp
        !ProElementIntegerGet(element,NULL,&depth)&&depth==PRO_EXT_DEPTH_TO_ALL&&
        markup_opening_section(feature,tree,&linked,&section)&&
        markup_opening_profile(section,&profile,line_ids)&&markup_opening_project(map,section,&profile,&opening)){
+        opening.occurrence=map->occurrence;
         if(linked.tree)opening.owner=linked.feature.id;
         if(pattern==PRO_PATTERN_NONE)
             markup_opening_drivers(section,linked.tree?&linked.feature:feature,&profile,line_ids,&opening);

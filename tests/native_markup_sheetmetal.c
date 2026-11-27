@@ -136,6 +136,55 @@ static int verify(uiCmdCmdId id,uiCmdValue *v,void *data){
     }
     fprintf(logfile,"OPENING_WIDTH_AND_UNCHANGED_HEIGHT=%d\n",verified);
     if(!verified)return finish(0);
+#ifdef BWTL_MARKUP_LOCAL_GEOMETRY_TEST
+    const MarkupOpening *edge=NULL;
+    for(int i=0;i<image->opening_count;i++)if(image->openings[i].feature==opening_id)edge=&image->openings[i];
+    if(!edge)return finish(0);
+    int axis=-1;
+    const double x=(edge->corners[0][0]+edge->corners[1][0])*0.5;
+    const double y=(edge->corners[0][1]+edge->corners[1][1])*0.5;
+    MarkupRequest edge_request={.ticket=image->ticket,.count=1,.text=L"把箭头指的这条开口边长度改为14毫米"};
+    edge_request.marks[0]=(MarkupMark){MARKUP_ARROW,x-10,y-10,x,y,1};
+    double edge_target;
+    int edge_index=markup_opening_edge(image,&edge_request.marks[0],&axis);
+    int reference=edge_index>=0&&image->openings[edge_index].feature==opening_id&&axis==0&&
+        markup_edge_length_request(edge_request.text,&edge_target)&&part_close(edge_target,14);
+    fprintf(logfile,"RECT_CUT_EDGE_REFERENCE=%d AXIS=%d FEATURE=%d\n",reference,axis,opening_id);
+    if(!reference)return finish(0);
+
+    MarkupFace face;
+    MarkupRequest face_request={.ticket=image->ticket,.count=2,.text=L"识别标注的面"};
+    ProFeature base;
+    e=cm_feature_find(sheet,L"BASE",&base);
+    int placed=0;
+    for(int i=0;i<image->count&&!e&&placed<2;i++)if(image->holes[i].feature==cut_id){
+        const MarkupHole *target=&image->holes[i];
+        for(int side=0;side<8&&placed<2;side++){
+            const double a=side*3.141592653589793/4;
+            const double px=target->x+2.1*target->rx*cos(a);
+            const double py=target->y+2.1*target->ry*sin(a);
+            MarkupMark mark={MARKUP_ARROW,px-10,py-10,px,py,1};
+            if(!markup_face_at(&markup_capture,&mark,&face)&&face.type==PRO_SRF_PLANE&&face.feature==base.id){
+                fprintf(logfile,"PLANE_%d_SURFACE=%d FEATURE=%d\n",placed+1,face.surface,face.feature);
+                face_request.marks[placed++]=mark;
+            }
+        }
+    }
+    reply[0]=0;
+    if(placed==2)markup_read_faces(&markup_capture,&face_request,reply,_countof(reply));
+    int faces=placed==2&&markup_face_request(face_request.text)&&wcsstr(reply,L"2 号 · 平面");
+    fprintf(logfile,"TWO_MARKS_PLANAR_FACE_READ_ONLY=%d\n",faces);
+    if(!faces)return finish(0);
+
+    reply[0]=0;
+    e=markup_apply_edge(&markup_capture,&edge_request,edge_target,reply,_countof(reply));
+    ImitationLocalProfile measured={0};
+    int pass=!e&&!imitation_local_profile(sheet,opening_id,&measured)&&part_close(measured.area,280)&&
+        !ProDimensionValueGet(&dim,&value)&&part_close(value,15);
+    fprintf(logfile,"ARROW_OPENING_EDGE_EDIT=%d CODE=%d AREA=%.8g UNCHANGED_CIRCLE=%.8g\n",pass,e,measured.area,value);
+    return finish(pass);
+#endif
+
     markup_capture_clear();
     int window;
     if(!ProWindowCurrentGet(&window))ProWindowBrowserSizeSet(window,0);

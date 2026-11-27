@@ -4,9 +4,10 @@ typedef struct {
     int rows;
 } CadMountDefinition;
 
-static CadMountDefinition cad_electronics={54,NULL,3};
-static CadMountDefinition cad_fasteners[]={
-    {40,NULL,2},{41,NULL,2},{43,NULL,2},{46,NULL,2}
+static const CadMountDefinition cad_electronics={54,L"2M0859-V1",3};
+static const CadMountDefinition cad_fasteners[]={
+    {40,L"BSO-M2-6L",2},{41,L"BSO-M2-6L",2},
+    {43,L"S-M3-1ZI",2},{46,L"S-M3-1ZI",2}
 };
 
 typedef struct {

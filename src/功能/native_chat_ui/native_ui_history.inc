@@ -12,6 +12,7 @@ static int native_ui_history(const wchar_t *text) {
         wchar_t *copy;count=wcslen(text);copy=(wchar_t *)calloc(count+1,sizeof(wchar_t));if(!copy)return 0;
         wcscpy_s(copy,count+1,text);free(native_render_source);native_render_source=copy;
     }
+    if(packaging_visible())return 1;
     if(!chat_render(native_history,native_render_source))return 0;
     if(follow){
         length=GetWindowTextLengthW(native_history);

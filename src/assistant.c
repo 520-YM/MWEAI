@@ -25,6 +25,9 @@
 static char dialog_name[] = "codex_native_assistant";
 static int created = 0;
 static wchar_t history[64000];
+#include <commdlg.h>
+#include <objbase.h>
+static HWND native_backend_window;
 #include "native_chat_ui.h"
 static HANDLE ai_process = NULL; /* Non-null while the resident worker has an active turn. */
 static ULONGLONG ai_started;
@@ -43,6 +46,8 @@ static void ai_poll(char *dialog, ProUITimerID timer, ProAppData data);
 
 
 #include "功能/assistant/trace.inc"
+#define BWTL_LOCAL_CONTROL_COLLABORATION 1
+#include "功能/local_control/live_task_events.inc"
 #include "功能/assistant/resident_channel.inc"
 #include "功能/assistant/ai_cleanup.inc"
 
@@ -84,8 +89,11 @@ static void append_card(const wchar_t *role,const wchar_t *text);
 #include "smart_checkpoint.h"
 #define BWTL_COMPONENT_OPEN_HOST 1
 #define BWTL_TASK_CONTEXT_HOST 1
+#define BWTL_LOCAL_CONTROL_WORKFLOWS 1
+static void local_control_workflow_reply(const wchar_t *text);
 #include "smart_session.h"
 #include "功能/assistant/component_open_receipt.inc"
+#include "功能/assistant/session_window_chat.inc"
 
 #include "功能/assistant/execute_part_command.inc"
 
@@ -113,6 +121,8 @@ static void append_card(const wchar_t *role,const wchar_t *text);
 #include "功能/assistant/assembly_child_chat.inc"
 #include "功能/modeling_rules/modeling_part_intent.inc"
 #include "功能/assistant/native_model_window.inc"
+static ProError company_pair_number_for_creation(const ModelingPartIntent *request,const wchar_t *revision,
+    ProMdlName name,PartText *out);
 #include "功能/assistant/default_part_chat.inc"
 #include "功能/assistant/verify_active_command.inc"
 
@@ -122,7 +132,9 @@ static void append_card(const wchar_t *role,const wchar_t *text);
 
 #include "功能/modeling_rules/assembly_experience.inc"
 #include "功能/assistant/memory_command.inc"
+static int file_write_rule_requested(const wchar_t *request);
 #include "功能/modeling_rules/modeling_rule_chat.inc"
+#include "功能/modeling_rules/file_write_rule_intent.inc"
 
 
 #include "功能/assistant/read_model.inc"
@@ -136,7 +148,9 @@ static int method_explicit(const wchar_t *text);
 static int method_prompt_write(FILE *prompt,const wchar_t *request,wchar_t kind);
 #include "功能/assembly/ax_learning_store.inc"
 #include "功能/assembly/ax_learning_capture.inc"
+#include "功能/reference_design/reference_placement.inc"
 #include "功能/assistant/capability_inventory.inc"
+#include "功能/assistant/request_assessment.inc"
 #include "功能/assistant/chat_request_context.inc"
 #include "功能/chat_file_analysis/attachment_analysis.inc"
 #include "功能/company_design/library_source_binding.inc"
@@ -146,7 +160,10 @@ static int method_prompt_write(FILE *prompt,const wchar_t *request,wchar_t kind)
 #include "功能/company_design/fastener_catalog.inc"
 #include "功能/company_design/library_model.inc"
 #include "功能/company_design/company_drawing.inc"
+#include "功能/company_design/company_delivery_bundle.inc"
 #include "功能/company_design/library_dispatch.inc"
+#include "功能/assistant/file_write_tool.inc"
+#include "功能/assistant/continuation_route.inc"
 #include "功能/assistant/ai_send.inc"
 
 
@@ -155,11 +172,22 @@ static int method_prompt_write(FILE *prompt,const wchar_t *request,wchar_t kind)
 
 
 #include "功能/assembly_naming/assembly_naming_chat.inc"
+#include "功能/assembly_naming/company_pair_number.inc"
 #include "功能/assistant/assembly_same_number_chat.inc"
 #include "功能/assistant/assembly_selected_chat.inc"
 static int camera_standard_chat(const wchar_t *text);
 #include "功能/company_design/fastener_save.inc"
 #include "功能/company_design/fastener_chat.inc"
+#include "功能/company_design/company_device_mount.inc"
+static int panel_flow_chat(const wchar_t *text);
+static int pressfit_workspace_pdf_chat(const wchar_t *text);
+static int panel_flow_busy(void);
+static int panel_flow_stop(void);
+static int reference_design_chat(const wchar_t *text);
+static int local_control_background_chat(const wchar_t *text);
+static int local_control_interference_chat(const wchar_t *text);
+static int drawing_number_chat(const wchar_t *request);
+static int local_control_com_busy(void);
 #include "功能/assistant/run_local.inc"
 
 
@@ -171,7 +199,7 @@ static int camera_standard_chat(const wchar_t *text);
 
 #include "功能/assistant/access_command.inc"
 
-static HWND native_backend_window;
+
 
 #include "功能/assistant/send_native_command.inc"
 
@@ -197,6 +225,7 @@ static ProError fastener_bso_verify_copy(ProMdl source,ProMdl copy,PartText *out
 #include "功能/camera_standard/camera_standard_chat.inc"
 #include "功能/screenshot_markup/markup_capture.inc"
 #include "功能/screenshot_markup/markup_apply.inc"
+#include "功能/company_design/pressfit_hole_resize.inc"
 
 static void native_markup_post(UINT message,LPARAM argument){
     if(!PostMessageW(native_backend_window,message,0,argument)&&message==MARKUP_APPLY){
@@ -205,6 +234,24 @@ static void native_markup_post(UINT message,LPARAM argument){
     }
 }
 
+static void local_control_pair_finish(ProError error,const wchar_t *reply);
+#include "功能/local_control/local_control_pair.inc"
+#include "功能/local_control/local_control_pressfit.inc"
+#include "功能/local_control/panel_flow_request.inc"
+#include "功能/local_control/panel_flow.inc"
+#include "功能/local_control/panel_multi_followup.inc"
+#include "功能/local_control/pressfit_workspace_spec.inc"
+#include "功能/local_control/grouped_pressfit_request.inc"
+#include "功能/local_control/grouped_pressfit.inc"
+#include "功能/local_control/pressfit_workspace_groups.inc"
+#include "功能/local_control/pressfit_workspace_methods.inc"
+#include "功能/local_control/pressfit_workspace_hardware.inc"
+#include "功能/local_control/pressfit_workspace_delivery.inc"
+#include "功能/local_control/pressfit_workspace_commands.inc"
+#include "功能/local_control/local_control_actions.inc"
+#include "功能/local_control/local_control_transport.inc"
+#include "功能/packaging/packaging_design.inc"
+#include "功能/background_creo/background_submit.inc"
 #include "功能/assistant/native_backend_proc.inc"
 
 
@@ -229,4 +276,6 @@ static void native_markup_post(UINT message,LPARAM argument){
 
 
 #include "功能/assistant/user_terminate.inc"
+
+
 

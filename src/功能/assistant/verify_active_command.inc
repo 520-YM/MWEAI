@@ -59,7 +59,10 @@ static int verify_active_command(uiCmdCmdId command,uiCmdValue *value,void *data
         if(assembly_child_after_create(active,name,pinned))return 0;
         if(smart_sheetmetal_demo){verify_sheetmetal_demo(active,name,pinned);return 0;}
         const wchar_t *receipt=smart_new_model_result[0]?smart_new_model_result:message;
-        if(pinned)chat_task_record_bound(active,active,name,request_snapshot.directory,L"新建模型",0,receipt,0,smart_steps+1);
+        if(pinned){
+            chat_task_record_bound(active,active,name,request_snapshot.directory,L"新建模型",0,receipt,0,smart_steps+1);
+            chat_task_record_company_assembly(active,receipt);
+        }
         smart_step(NULL,L"新建模型",0,receipt,1,0,!pinned);
     }else{
         memset(&default_assembly_pending,0,sizeof(default_assembly_pending));

@@ -1,3 +1,7 @@
+# BWTL 安全与授权边界
+
+BWTL 工作按 [安全与授权边界](docs/安全与授权边界.md) 执行。任务内已授权的原生操作连续完成，扩大范围或执行不可逆操作前核对本轮授权。
+
 # BWTL isolation requirement
 
 The user explicitly required complete isolation from their earlier Codex–Creo integration on 2026-11-05.
@@ -36,3 +40,10 @@ The user explicitly required complete isolation from their earlier Codex–Creo 
 # 执行用户明确要求
 
 - 用户明确要求执行、继续或说「做到哪步算哪步」时，先按实际模型、当前回执和上下文执行能完成的步骤，建议可以一起给；尽量自己核对已有结果并保留已完成进展，仅在确实缺少必要条件时说明具体卡点。
+
+
+# Codex local control
+
+- For an authorized Creo operation through BWTL, use the active E-drive package's `scripts/Invoke-BWTL.ps1`. Read the managed `active.json` to locate it. List BWTL sessions, select the user's target, and read status before writing. Use fresh native readback to verify results.
+- When the selected version provides connection fusion, use `Connect` to verify both identities, `Navigate` for the specified VB API window transition, and the returned `Data.context` for native `Execute`. Pin the session number and process identity across a combined task, verify each target after a window transition and inspect actual model state after an uncertain write before deciding whether to continue.
+- Refer to [BWTL 本机控制](docs/BWTL%20本机控制.md) for the supported operations and save conflict behavior.

@@ -4,18 +4,39 @@
 typedef struct {
     ProMdl model;
     ProWVerstamp stamp;
+} MarkupMemberStamp;
+
+typedef struct {
+    ProMdl model;
+    ProWVerstamp stamp;
+    MarkupMemberStamp *members;
+    int member_count,assembly;
     ProPath directory;
     int window;
     unsigned long ticket;
     MarkupImage *image;
+    RECT face_view;
+    double face_basis[2][3],face_pixels[2][2],face_anchor[2],face_origin[3],face_toward[3],face_span;
 } MarkupCapture;
 static MarkupCapture markup_capture;
 static MarkupRequest markup_request;
 static unsigned long markup_serial;
 static int markup_pending;
+static ProSelection markup_assembly_highlights[MARKUP_MAX_MARKS];
+
+static void markup_assembly_clear_highlights(void){
+    for(int i=0;i<_countof(markup_assembly_highlights);i++)if(markup_assembly_highlights[i]){
+        ProSelectionUnhighlight(markup_assembly_highlights[i]);
+        ProSelectionFree(&markup_assembly_highlights[i]);
+    }
+}
 
 static void markup_capture_clear(void){
+    markup_assembly_clear_highlights();
     if(markup_capture.stamp)ProVerstampFree(&markup_capture.stamp);
+    for(int i=0;i<markup_capture.member_count;i++)if(markup_capture.members[i].stamp)
+        ProVerstampFree(&markup_capture.members[i].stamp);
+    free(markup_capture.members);
     markup_image_free(markup_capture.image);
     memset(&markup_capture,0,sizeof(markup_capture));
 }
@@ -60,11 +81,12 @@ done:
 
 typedef struct {
     MarkupImage *image;
-    ProMdl model;
+    ProMdl model,assembly;
+    MarkupOccurrence occurrence;
     int window;
-    ProMatrix view,zoom;
+    ProMatrix view,zoom,to_root;
     ProOutline viewport;
-    ProVector toward_viewer;
+    ProVector toward_viewer,root_toward;
     double span;
     const BYTE *pixels;
     int stride;
@@ -73,14 +95,21 @@ typedef struct {
 #include "markup_window_capture.inc"
 
 static int markup_project(MarkupProjection *map,ProPoint3d model,Pro2dPnt result){
-    ProPoint3d view,window;
+    ProPoint3d world,view,window;
     Pro2dPnt pixel;
-    if(ProPntTrfEval(model,map->view,view)||ProPntTrfEval(view,map->zoom,window)||
+    double *projected=model;
+    if(map->assembly){
+        if(ProPntTrfEval(model,map->to_root,world))return 0;
+        projected=world;
+    }
+    if(ProPntTrfEval(projected,map->view,view)||ProPntTrfEval(view,map->zoom,window)||
        ProWindowCoordinatePixelGet(map->window,window,pixel))return 0;
     result[0]=(pixel[0]-map->viewport[0][0])*map->image->width/(map->viewport[1][0]-map->viewport[0][0]);
     result[1]=(map->viewport[1][1]-pixel[1])*map->image->height/(map->viewport[1][1]-map->viewport[0][1]);
     return isfinite(result[0])&&isfinite(result[1]);
 }
+
+#include "markup_faces.inc"
 
 typedef struct { ProDimension dimension; double diameter; int count,owner; } MarkupDriver;
 static ProError markup_driver(ProDimension *dimension,ProError status,ProAppData data){
@@ -184,7 +213,10 @@ cleanup:
     return found==1;
 }
 
+static int markup_assembly_visible(const MarkupProjection *map,const ProPoint3d center);
+
 static int markup_visible_opening(MarkupProjection *map,const ProPoint3d center){
+    if(map->assembly)return markup_assembly_visible(map,center);
     ProRay ray;
     for(int i=0;i<3;i++){
         ray.start_point[i]=center[i]+map->span*map->toward_viewer[i];
@@ -241,8 +273,9 @@ static ProError markup_surface(ProGeomitem *item,ProError status,ProAppData data
     double end=facing>=0?geometry->uv_max[1]:geometry->uv_min[1];
     ProPoint3d center;
     for(int i=0;i<3;i++)center[i]=cylinder.origin[i]+end*cylinder.e3[i];
+    double depth=fabs(geometry->uv_max[1]-geometry->uv_min[1]);
     ProGeomitemdataFree(&raw);
-    if(fabs(facing)<0.45||!markup_visible_opening(map,center))return PRO_TK_NO_ERROR;
+    if(!isfinite(depth)||depth<=1e-7||fabs(facing)<0.45||!markup_visible_opening(map,center))return PRO_TK_NO_ERROR;
     MarkupDriver driver={.diameter=2*cylinder.radius,.owner=feature.id};
     int editable=pattern==PRO_PATTERN_NONE&&
         (type==PRO_FEAT_HOLE?(!ProFeatureDimensionVisit(&feature,markup_driver,NULL,&driver)&&driver.count==1):
@@ -250,6 +283,10 @@ static ProError markup_surface(ProGeomitem *item,ProError status,ProAppData data
     Pro2dPnt middle,p;
     if(!markup_project(map,center,middle))return PRO_TK_NO_ERROR;
     MarkupHole hole={feature.id,editable?driver.dimension.id:-1,driver.owner,driver.diameter,middle[0],middle[1],0,0,2*cylinder.radius};
+    hole.surface=item->id;hole.depth=depth;
+    hole.occurrence=map->occurrence;
+    memcpy(hole.center,center,sizeof(hole.center));
+    memcpy(hole.axis,cylinder.e3,sizeof(hole.axis));
     int visible_samples=0;
     for(int i=0;i<8;i++){
         const double angle=i*3.141592653589793/4;
@@ -265,7 +302,8 @@ static ProError markup_surface(ProGeomitem *item,ProError status,ProAppData data
        hole.y-hole.ry<0||hole.y+hole.ry>=image->height)return PRO_TK_NO_ERROR;
     for(int i=0;i<image->count;i++){
         const MarkupHole *old=&image->holes[i];
-        if(old->feature==hole.feature&&old->dimension==hole.dimension&&hypot(old->x-hole.x,old->y-hole.y)<1)return PRO_TK_NO_ERROR;
+        if(old->feature==hole.feature&&old->dimension==hole.dimension&&
+           markup_same_occurrence(&old->occurrence,&hole.occurrence)&&hypot(old->x-hole.x,old->y-hole.y)<1)return PRO_TK_NO_ERROR;
     }
     if(image->count==MARKUP_MAX_HOLES)image->truncated=1;
     else image->holes[image->count++]=hole;
@@ -306,12 +344,15 @@ static double markup_mm_scale(ProMdl model){
     return conversion.scale;
 }
 
+#include "markup_assembly_context.inc"
+
 static ProError markup_take(MarkupCapture *capture){
     ProMdlType type;
     ProError error=ProMdlCurrentGet(&capture->model);
     if(!error)error=ProMdlTypeGet(capture->model,&type);
-    if(error||type!=PRO_MDL_PART)return PRO_TK_INVALID_TYPE;
-    if(!storage_directory_on_drive(runtime_data,storage_data_drive()))
+    if(error||(type!=PRO_MDL_PART&&type!=PRO_MDL_ASSEMBLY))return PRO_TK_INVALID_TYPE;
+    capture->assembly=type==PRO_MDL_ASSEMBLY;
+    if(!storage_directory_on_drive(runtime_data,L'E'))
         return PRO_TK_CANT_WRITE;
     if((error=ProDirectoryCurrentGet(capture->directory))||
        (error=ProWindowCurrentGet(&capture->window))||
@@ -319,6 +360,7 @@ static ProError markup_take(MarkupCapture *capture){
     MarkupImage *image=calloc(1,sizeof(*image));
     if(!image)return PRO_TK_OUT_OF_MEMORY;
     capture->image=image;
+    image->assembly=capture->assembly;
     image->mm_per_native=markup_mm_scale(capture->model);
     image->ticket=capture->ticket=++markup_serial;
     ProMdlName name;
@@ -329,8 +371,9 @@ static ProError markup_take(MarkupCapture *capture){
        (error=ProWindowPixelOutlineGet(map.window,map.viewport)))return error;
     double w=map.viewport[1][0]-map.viewport[0][0],h=map.viewport[1][1]-map.viewport[0][1];
     if(w<100||h<100)return PRO_TK_BAD_CONTEXT;
-    Pro3dPnt bounds[2];
-    if((error=ProSolidOutlineGet((ProSolid)map.model,bounds)))return error;
+    Pro3dPnt bounds[2]={{-100,-100,-100},{100,100,100}};
+    error=ProSolidOutlineGet((ProSolid)map.model,bounds);
+    if(error&&!capture->assembly)return error;
     map.span=4*hypot(hypot(bounds[1][0]-bounds[0][0],bounds[1][1]-bounds[0][1]),bounds[1][2]-bounds[0][2])+1;
     for(int i=0;i<3;i++)map.toward_viewer[i]=map.view[i][2];
     if(!ad_unit(map.toward_viewer))return PRO_TK_BAD_CONTEXT;
@@ -348,10 +391,14 @@ static ProError markup_take(MarkupCapture *capture){
         return PRO_TK_CANT_OPEN;
     map.pixels=bitmap.dsBm.bmBits;
     map.stride=bitmap.dsBm.bmWidthBytes;
-    error=ProSolidSurfaceVisit((ProSolid)map.model,markup_visit_surface,NULL,&map);
-    if(error&&error!=PRO_TK_E_NOT_FOUND)return error;
-    error=ProSolidFeatVisit((ProSolid)map.model,markup_opening_feature,NULL,&map);
-    if(error&&error!=PRO_TK_E_NOT_FOUND)return error;
+    if(capture->assembly){
+        if((error=markup_assembly_collect(capture,&map)))return error;
+    }else{
+        error=ProSolidSurfaceVisit((ProSolid)map.model,markup_visit_surface,NULL,&map);
+        if(error&&error!=PRO_TK_E_NOT_FOUND)return error;
+        error=ProSolidFeatVisit((ProSolid)map.model,markup_opening_feature,NULL,&map);
+        if(error&&error!=PRO_TK_E_NOT_FOUND)return error;
+    }
     error=markup_check_capture(capture);
     if(error)return error;
     RECT view;
@@ -360,6 +407,9 @@ static ProError markup_take(MarkupCapture *capture){
     if(!full)return PRO_TK_CANT_OPEN;
     double sx=(double)(view.right-view.left)/image->width;
     double sy=(double)(view.bottom-view.top)/image->height;
+    ProPoint3d anchor;
+    for(int i=0;i<3;i++)anchor[i]=(bounds[0][i]+bounds[1][i])*0.5;
+    (void)markup_face_projection(capture,&map,anchor,&view,sx,sy);
     for(int i=0;i<image->count;i++){
         MarkupHole *hole=&image->holes[i];
         hole->x=view.left+hole->x*sx;

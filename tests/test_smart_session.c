@@ -6,6 +6,7 @@
 #include "../src/model_plan.h"
 #define PART_TEXT_MAX 28000
 typedef void *ProMdl;typedef int ProError;typedef int uiCmdCmdId;typedef int uiCmdValue;
+enum {PRO_TK_USER_ABORT=-3};
 typedef struct {wchar_t path[MAX_PATH],name[100];HBITMAP thumbnail;} NativeImage;
 #define NATIVE_IMAGE_MAX 4
 static int store_ready,queued,busy;static HANDLE ai_process;
@@ -25,7 +26,31 @@ static int fake_binding=1;
 static void smart_binding_clear(void){}
 static int smart_binding_valid(void){return fake_binding;}
 #include "../src/smart_session.h"
+#include "../src/功能/assistant/vent_request_policy.inc"
 static void ai_send(const wchar_t *text){}
+static void test_fastener_failure_stages(void){
+    PartCommand insert,read,align;
+    assert(part_command_parse(L"CREO_OP ASM_INSERT TESTASM BSO_EXACT 0 0 0",&insert)==1);
+    assert(part_command_parse(L"CREO_OP ASM_TREE TESTASM",&read)==1);
+    assert(smart_step_stage(&insert)==SMART_STAGE_INSERT);
+    assert(smart_step_stage(&read)==SMART_STAGE_READ);
+    align=(PartCommand){.verb=PART_FOUNDATION};
+    wcscpy_s(align.arg[0],_countof(align.arg[0]),L"ASM_W_ALIGN_BATCH");
+    assert(smart_step_stage(&align)==SMART_STAGE_PLACE);
+
+    smart_begin(L"把六个 BSO 紧固件装到现有孔");
+    smart_library_result(1,-8,L"已登记目录的来源待核对");
+    smart_step(&read,read.arg[0],-8,L"读取组件参照未通过",0,0,0);
+    smart_step(&insert,insert.arg[0],-24,L"装入未成功，原装配仍有效",0,0,0);
+    assert(smart_active&&smart_diagnostic_failures==2&&smart_total_failures==3&&
+           smart_failures==1&&smart_failures_without_progress==1);
+    assert(smart_stage_failures[SMART_STAGE_LOCATE]==1&&smart_stage_failures[SMART_STAGE_READ]==1&&
+           smart_stage_failures[SMART_STAGE_INSERT]==1);
+    smart_step(&align,align.arg[0],0,L"已换用核对通过的定位方法",1,0,0);
+    assert(smart_active&&smart_progress==1&&!smart_failures_without_progress);
+    smart_cancel();
+}
+
 static void test_failure_brief(void){
     PartCommand sketch;
     assert(part_command_parse(L"CREO_OP SMT_SKETCH PRT TestBase PLANE:FRONT PLANE:RIGHT RECT -100 -75 200 150",&sketch)==1);
@@ -95,7 +120,29 @@ int main(void){
     smart_cancel();
     smart_begin(L"先看看能否修改当前模型，不修改模型");smart_waiting_for_user=1;smart_begin(L"可以");assert(smart_readonly);smart_cancel();
     smart_begin(L"新建一个方块");queued=0;for(i=0;i<SMART_MAX_STEPS;i++)smart_after_tool(0,L"原生检查通过",0);assert(!smart_active&&queued==SMART_MAX_STEPS-1);
-    smart_begin(L"倒圆角R2");smart_after_tool(-1,L"失败并已恢复",0);assert(smart_active);smart_after_tool(-1,L"失败并已恢复",0);assert(!smart_active);
+    smart_begin(L"倒圆角R2");
+    for(i=1;i<SMART_MAX_FAILURES_WITHOUT_PROGRESS;i++){
+        smart_after_tool(-1,L"失败并已恢复",0);assert(smart_active);
+    }
+    smart_after_tool(-1,L"失败并已恢复",0);assert(!smart_active);
+    assert(smart_direct_vent_request(L"打 2 行 3 列圆孔网格，孔径5.4mm"));
+    assert(smart_direct_vent_request(L"在当前模型打 2 行 3 列圆孔网格，横纵孔距都为40mm，孔径5.4mm"));
+    assert(!smart_direct_vent_request(L"在当前零件上打2行3列圆孔网格用哪个命令"));
+    assert(!smart_direct_vent_request(L"怎么打圆孔网格？"));
+    assert(!smart_direct_vent_request(L"只分析圆孔网格，不执行"));
+    assert(!smart_direct_vent_request(L"把 VENT_ROUND 写入建模规则"));
+    assert(!smart_direct_vent_request(L"打2行3列圆孔网格用什么命令"));
+    smart_begin(L"打圆孔网格");
+    smart_intent=SMART_INTENT_CURRENT;smart_readonly=0;
+    assert(smart_needs_native_result(0)&&!smart_needs_native_result(1));
+    assert(smart_missing_capability_needs_check(L"没有对应的功能，请提供其他信息"));
+    assert(!smart_missing_capability_needs_check(L"请确认是贯穿孔还是盲孔"));
+    smart_step(&read,read.arg[0],0,L"孔位已读回",0,0,0);
+    assert(smart_needs_native_result(0));
+    assert(!smart_missing_capability_needs_check(L"没有对应的功能"));
+    smart_step(&write,write.arg[0],0,L"已创建特征",1,0,0);
+    assert(!smart_needs_native_result(0));
+    smart_cancel();
     smart_begin(L"倒圆角R2");smart_after_tool(-1,L"恢复未能核实",0);assert(!smart_active);
     smart_begin(L"创建测试件并加把手");
     smart_after_tool(-1,L"基准操作失败，已恢复",0);
@@ -165,13 +212,15 @@ int main(void){
     smart_step(&fail,fail.arg[0],-4,L"错误的入口参照",0,0,0);
     assert(smart_active&&smart_protocol_seen(&renamed)&&smart_total_failures==1);
     smart_step(NULL,L"另一尝试",-4,L"仍无法找到入口",0,0,0);
-    assert(!smart_active&&smart_paused&&smart_steps==3&&smart_progress==1);
+    assert(smart_active&&smart_steps==3&&smart_progress==1);
+    smart_step(NULL,L"第三种已核对的参照",-4,L"该参照也不能用于入口",0,0,0);
+    assert(!smart_active&&smart_paused&&smart_steps==4&&smart_progress==1);
     fake_binding=0;
     assert(!smart_resume()&&smart_paused);
     fake_binding=1;
-    assert(smart_resume()&&smart_active&&smart_steps==3&&smart_failures==0&&smart_total_failures==2);
+    assert(smart_resume()&&smart_active&&smart_steps==4&&smart_failures==0&&smart_total_failures==3);
     assert(smart_protocol_seen(&write)&&smart_protocol_seen(&renamed));
-    assert(wcsstr(smart_details,L"第 2 步｜失败")&&wcsstr(smart_details,L"第 3 步｜失败"));
+    assert(wcsstr(smart_details,L"第 2 步｜失败")&&wcsstr(smart_details,L"第 4 步｜失败"));
     smart_cancel();
     PartCommand back,save;
     assert(part_command_parse(L"CREO_OP STOOL_BACK PRT 270 20 300",&back)==1);
@@ -194,5 +243,6 @@ int main(void){
     smart_intent=SMART_INTENT_NEW;
     assert(smart_protocol_allowed(&chair)&&!smart_protocol_allowed(&stool)&&!smart_protocol_allowed(&import));
     smart_cancel();
+    test_fastener_failure_stages();
     puts("SMART SESSION PASS: contextual confirmation, read-only and cancellation guards, bounded continuation, and one saved reply after multiple receipts or direct creation.");return 0;
 }

@@ -568,12 +568,17 @@ static ProError replay_build_feature(ImitationReplay *replay,ProFeature *source,
         error=replay_draw_section(replay,original.section,result.section,REPLAY_ASSOCIATIVE_SECTION,entities,dimensions);
         if(error)goto done;
         stage="finish embedded feature";
-        if(type==PRO_FEAT_CUT_SMT||type==PRO_FEAT_DATUM_SURF){
+        if(type==PRO_FEAT_CUT_SMT||type==PRO_FEAT_DATUM_SURF||
+           (type==PRO_FEAT_CUT&&form==PRO_EXTRUDE)){
             ProElement planned_direction,section_direction;
-            int sense;
+            int sense,embedded_sense;
             error=mc_tree_element(tx.root,(ProElemId[]){PRO_E_STD_DIRECTION},1,&planned_direction);
             if(!error)error=ProElementIntegerGet(planned_direction,NULL,&sense);
             if(!error)error=mc_tree_element(result.tree,(ProElemId[]){PRO_E_STD_DIRECTION},1,&section_direction);
+            if(!error&&type==PRO_FEAT_CUT&&!ProElementIntegerGet(section_direction,NULL,&embedded_sense)&&embedded_sense!=sense){
+                trace("Replay solid cut direction before restoration",embedded_sense);
+                trace("Replay solid cut direction from input",sense);
+            }
             if(!error)error=ProElementIntegerSet(section_direction,sense);
             if(error)goto done;
         }
@@ -582,11 +587,15 @@ static ProError replay_build_feature(ImitationReplay *replay,ProFeature *source,
             PRO_REGEN_NO_RESOLVE_MODE|PRO_REGEN_UNDO_IF_FAIL,&tx.errors);
         if(error)goto done;
     }
-    stage="verify new feature";
+    stage="regenerate new feature";
     error=part_regenerate(replay->target);
+    if(error)goto done;
+    stage="verify new feature type";
     ProFeattype actual;
-    if(!error)error=ProFeatureTypeGet(&tx.feature,&actual);
+    error=ProFeatureTypeGet(&tx.feature,&actual);
     if(!error&&actual!=type)error=PRO_TK_INCOMPLETE;
+    if(error)goto done;
+    stage="verify new feature geometry";
     if(!error&&type==PRO_FEAT_CSYS)error=replay_verify_csys(source,&tx.feature);
     if(!error&&type==PRO_FEAT_DATUM)error=replay_verify_plane(source,&tx.feature);
     if(!error&&type==PRO_FEAT_DATUM_POINT)error=replay_verify_points(source,&tx.feature);
@@ -602,7 +611,16 @@ static ProError replay_build_feature(ImitationReplay *replay,ProFeature *source,
             error=replay_verify_equation_curve(source,&tx.feature);
     }
     if(!error&&removes)error=qa_geometry_mass(replay->target,&new_mass);
-    if(!error&&removes&&new_mass.volume>=old_mass.volume-1e-8)error=PRO_TK_INCOMPLETE;
+    if(!error&&removes&&new_mass.volume>=old_mass.volume-1e-8){
+        FILE *log=runtime_open(L"imitation-native-diagnostics.log",L"at, ccs=UTF-8");
+        if(log){
+            fwprintf(log,L"replay_cut_volume source_feature=%d before=%.12g after=%.12g\n",
+                     source->id,old_mass.volume,new_mass.volume);
+            fclose(log);
+        }
+        stage="verify material removal";
+        error=PRO_TK_INCOMPLETE;
+    }
     if(!error)*created=tx.feature;
 done:
     if(error){
@@ -948,7 +966,17 @@ static ProError replay_feature(ProFeature *feature,ProError status,ProAppData da
     if(!error&&type==PRO_FEAT_GROUP_HEAD)error=replay_mirror_members(replay,feature,&created);
     if(!standard)replay->last_pattern_member=0;
     if(!error&&pattern==PRO_PATTERN_LEADER)error=replay_pattern(replay,feature,&created,PRO_FEAT_PATTERN);
-    if(!standard)replay_diagnostic_end(replay,feature,error);
+    if(!standard){
+        replay_diagnostic_end(replay,feature,error);
+#ifdef BWTL_LOCAL_CONTROL_COLLABORATION
+        if(bwtl_live_file!=INVALID_HANDLE_VALUE){
+            wchar_t step[580];
+            swprintf_s(step,_countof(step),L"重建第 %d 步，源特征 %d，%ls %ls。",
+                replay->steps,feature->id,replay_operation_name(type),label);
+            bwtl_live_emit(L"progress",1,error,step);
+        }
+#endif
+    }
     if(error)replay_report_reference_failure(&replay->reference_error,replay->out);
     if(error&&replay->failure){
         replay->failure->step=standard?0:replay->steps;

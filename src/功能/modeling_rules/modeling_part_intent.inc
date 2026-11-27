@@ -1,7 +1,7 @@
 /* Typed blank-part requests. Each clause is consumed before native writes. */
 enum { MODELING_PART_NEW=1, MODELING_PART_SINGLE, MODELING_PART_CURRENT };
 typedef struct {
-    int scope,kind,invalid,same_name,require_company;
+    int scope,kind,invalid,same_name,require_company,require_company_number;
     wchar_t name[PRO_NAME_SIZE],revision[4];
 } ModelingPartIntent;
 
@@ -58,6 +58,7 @@ static int modeling_part_parse(const wchar_t *text,ModelingPartIntent *intent){
         L"单独创建",L"单独新建",L"单独建",L"单独"
     };
     static const wchar_t *const parents[]={
+        L"在里面",L"在这里面",
         L"在当前空装配体",L"在当前空装配",L"在当前装配体",L"在当前装配",
         L"在这个空装配体",L"在这个空装配",L"在这个装配体",L"在这个装配",
         L"在该空装配体",L"在该空装配",L"在该装配体",L"在该装配",
@@ -74,15 +75,22 @@ static int modeling_part_parse(const wchar_t *text,ModelingPartIntent *intent){
         L"不要修改当前装配",L"不要改当前装配",L"不要动当前装配",L"别动当前装配",L"保留当前装配"
     };
     static const wchar_t *const company_flow[]={L"按照公司流程",L"按公司流程"};
+    static const wchar_t *const company_number[]={
+        L"按照我们公司的图号规则",L"按我们公司的图号规则",L"按照公司图号规则",L"按公司图号规则",
+        L"按照公司的图号规则",L"按公司的图号规则",L"使用公司图号",L"用公司图号"
+    };
     static const wchar_t *const unchanged[]={
         L"暂不保存",L"不用保存",L"不保存",L"直接执行",L"一定要做到",L"默认装配",L"默认定位",
-        L"自动打开钣金件",L"自动打开子件",L"打开新建的钣金零件",L"然后打开钣金件"
+        L"自动打开钣金件",L"自动打开子件",L"打开新建的钣金零件",L"然后打开钣金件",
+        L"试一下",L"试试",L"开始吧",L"就行",L"吧"
     };
     memset(intent,0,sizeof(*intent));
     const wchar_t *p=model_request_action_start(text);
     int standalone=0,in_parent=0,keep_parent=0;
     for(;;){
-        if(modeling_part_take_any(&p,company_flow,_countof(company_flow))){
+        if(modeling_part_take_any(&p,company_number,_countof(company_number))){
+            intent->require_company=intent->require_company_number=1;
+        }else if(modeling_part_take_any(&p,company_flow,_countof(company_flow))){
             intent->require_company=1;
         }else if(modeling_part_take_any(&p,negative_single,_countof(negative_single))){
             if(!*p||!wcschr(L"，,；;。",*p))return 0;
@@ -125,7 +133,9 @@ static int modeling_part_parse(const wchar_t *text,ModelingPartIntent *intent){
             next=modeling_part_skip(next);
             if(assembly_take(&next,L"为")||assembly_take(&next,L"是"))next=modeling_part_skip(next);
             if(intent->revision[0]||!modeling_part_revision(&next,intent->revision)){intent->invalid=1;break;}
-        }else if(modeling_part_take_any(&next,negative_single,_countof(negative_single)))intent->require_company=1;
+        }else if(modeling_part_take_any(&next,company_number,_countof(company_number)))
+            intent->require_company=intent->require_company_number=1;
+        else if(modeling_part_take_any(&next,negative_single,_countof(negative_single)))intent->require_company=1;
         else if(modeling_part_take_any(&next,positive_tail,_countof(positive_tail)))standalone=1;
         else if(in_parent&&(assembly_take(&next,L"和装配同号")||assembly_take(&next,L"跟装配同号")||
                            assembly_take(&next,L"与装配同号")||assembly_take(&next,L"同图号")||assembly_take(&next,L"同号")))

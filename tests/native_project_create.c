@@ -89,7 +89,7 @@ static int project_probe_finish(const wchar_t *directory){
 }
 
 static int project_probe_run(uiCmdCmdId command,uiCmdValue *value,void *data){
-    static const wchar_t full_name[]=L"1台测试终端（示例地区）（TEST-0001）";
+    static const wchar_t full_name[]=L"1台55寸户外单屏（奥地利）（MWE-26051804501）";
     ProPath initial,current;
     wchar_t root[MAX_PATH],missing[MAX_PATH],source[MAX_PATH],target[MAX_PATH],drawing[MAX_PATH],path[MAX_PATH];
     wchar_t message[PRO_PATH_SIZE+100]=L"",label[64]=L"";

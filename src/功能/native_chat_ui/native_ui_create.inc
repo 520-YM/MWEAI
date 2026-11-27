@@ -2,7 +2,7 @@ static int native_ui_create(HWND owner,int show){
     WNDCLASSW cls={0};HINSTANCE module=GetModuleHandleW(NULL);int i;HDC dc;
     const wchar_t *labels[3]={L"读取当前模型",L"发送给 AI",L"关闭"};
     int ids[3]={CHAT_READ,CHAT_SEND,CHAT_CLOSE};
-    const wchar_t *top_labels[5]={L"插件功能",L"标准文件",L"工作目录",L"仿照模型",L"截图改图"};
+    const wchar_t *top_labels[]={L"插件功能",L"标准文件",L"工作目录",L"仿照模型",L"截图改图",L"包装设计"};
     wchar_t slot[12], title[32]=L"MWEAI";
     DWORD slot_length=GetEnvironmentVariableW(L"BWTL_INSTANCE_NUMBER",slot,_countof(slot));
     if(slot_length && slot_length<_countof(slot) && wcsspn(slot,L"0123456789")==slot_length)
@@ -14,16 +14,22 @@ static int native_ui_create(HWND owner,int show){
     native_background=CreateSolidBrush(CHAT_CANVAS_COLOR);cls.hbrBackground=native_background;
     native_header_brush=CreateSolidBrush(CHAT_HEADER_COLOR);
     if(!RegisterClassW(&cls)&&GetLastError()!=ERROR_CLASS_ALREADY_EXISTS)return 0;
-    native_window=CreateWindowExW(WS_EX_TOOLWINDOW,cls.lpszClassName,title,WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,
+#ifdef BWTL_BUILD_VERSION
+    wchar_t caption[128];
+    swprintf_s(caption,_countof(caption),L"%ls · %ls",title,BWTL_BUILD_VERSION);
+#else
+    const wchar_t *caption=title;
+#endif
+    native_window=CreateWindowExW(WS_EX_TOOLWINDOW,cls.lpszClassName,caption,WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,
         CW_USEDEFAULT,CW_USEDEFAULT,980,820,owner,NULL,module,NULL);
     if(!native_window)return 0;
     native_theme_caption(native_window);
     native_title=CreateWindowW(L"STATIC",title,WS_CHILD|WS_VISIBLE,0,0,0,0,native_window,NULL,module,NULL);
     native_elapsed_label=CreateWindowW(L"STATIC",L"等待指令",WS_CHILD|WS_VISIBLE|SS_RIGHT,0,0,0,0,native_window,NULL,module,NULL);
-    for(i=0;i<5;i++){
+    for(i=0;i<_countof(native_top_buttons);i++){
         DWORD style=WS_CHILD|WS_VISIBLE|BS_OWNERDRAW|WS_TABSTOP;
-        native_top_buttons[i]=CreateWindowW(L"BUTTON",top_labels[i],style,
-            0,0,0,0,native_window,(HMENU)(INT_PTR)(CHAT_FEATURES+i),module,NULL);
+        native_top_buttons[i]=CreateWindowW(L"BUTTON",i<_countof(top_labels)?top_labels[i]:L"预留",i<_countof(top_labels)?style:(WS_CHILD|WS_VISIBLE|WS_DISABLED|BS_OWNERDRAW),
+            0,0,0,0,native_window,(HMENU)(INT_PTR)(i==5?CHAT_PACKAGING:i<5?CHAT_FEATURES+i:4250+i),module,NULL);
         if(!native_top_buttons[i]){DestroyWindow(native_window);return 0;}
     }
     native_stop_button=CreateWindowW(L"BUTTON",L"停止",WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,0,0,0,0,native_window,(HMENU)CHAT_STOP,module,NULL);
@@ -55,7 +61,7 @@ static int native_ui_create(HWND owner,int show){
     SendMessageW(native_history,WM_SETFONT,(WPARAM)native_font,TRUE);
     SendMessageW(native_prompt,WM_SETFONT,(WPARAM)native_font,TRUE);
     for(i=0;i<3;i++)SendMessageW(native_buttons[i],WM_SETFONT,(WPARAM)native_font,TRUE);
-    for(i=0;i<5;i++)SendMessageW(native_top_buttons[i],WM_SETFONT,(WPARAM)native_font,TRUE);
+    for(i=0;i<_countof(native_top_buttons);i++)SendMessageW(native_top_buttons[i],WM_SETFONT,(WPARAM)native_font,TRUE);
     SendMessageW(native_stop_button,WM_SETFONT,(WPARAM)native_font,TRUE);
     SendMessageW(native_attach_button,WM_SETFONT,(WPARAM)native_font,TRUE);
     SendMessageW(native_clear_button,WM_SETFONT,(WPARAM)native_font,TRUE);

@@ -1,0 +1,2 @@
+c84a2516447cdcb0bf82717b57c3980b2279e17a2a734fa446f3705652a15e8c  MWEAI-Setup-0.23.0-preview.10.exe
+131d2fc2b7ccefe6b36153243fe3257966143c38f8b10ee69568fbcbdb3df47b  MWEAI-0.23.0-preview.10-windows-x64.zip

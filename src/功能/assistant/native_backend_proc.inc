@@ -1,9 +1,20 @@
 static LRESULT CALLBACK native_backend_proc(HWND window,UINT message,WPARAM w,LPARAM l){
+ if(message==BACKGROUND_REQUEST){background_request((UINT)w,(wchar_t *)l);return 0;}
+ if(message==WM_TIMER&&w==BACKGROUND_TIMER){background_poll();return 0;}
+ if(message==BWTL_LIVE_REFRESH||(message==WM_TIMER&&w==BWTL_LIVE_TIMER)){bwtl_live_schedule();return 0;}
+ if(message==WM_TIMER&&w==LOCAL_CONTROL_MODEL_TIMER){local_control_model_timeout();return 0;}
+ if(message==LOCAL_CONTROL_MESSAGE||(message==WM_TIMER&&w==LOCAL_CONTROL_TIMER)){local_control_schedule();return 0;}
+ if(message==WM_TIMER&&w==LOCAL_CONTROL_PAIR_TIMER){local_control_pair_timeout();return 0;}
  if(message==WM_APP+41){trace("Queue chat dispatch",ProMacroLoad(L"~ Command `CodexNativeSend`;"));return 0;}
  if(message==WM_APP+42){trace("Queue model inspection",ProMacroLoad(L"~ Command `CodexNativeInspect`;"));return 0;}
  if(message==WM_APP+43){on_closed(NULL,NULL,NULL);return 0;}
  if(message==WM_APP+44){ai_poll(NULL,NULL,NULL);return 0;}
- if(message==WM_APP+45){fastener_open_cancel();if(!default_part_stop()){default_part_cancel();return_assembly_cancel();smart_stop();}return 0;}
+ if(message==WM_APP+45){
+    if(panel_flow_stop())return 0;
+    fastener_open_cancel();
+    if(!default_part_stop()){default_part_cancel();return_assembly_cancel();smart_stop();}
+    return 0;
+ }
  if(message==WM_APP+48){
     if(!smart_details[0])append(L"本次会话暂无原生执行明细。");
     else if(wcslen(smart_details)<=21000)append_card(L"执行结果",smart_details);
@@ -24,9 +35,25 @@ static LRESULT CALLBACK native_backend_proc(HWND window,UINT message,WPARAM w,LP
  }
  if(message==BWTL_WORKDIR_REQUEST){queue_workdir_command((UINT)w,(wchar_t *)l);return 0;}
  if(message==WM_TIMER&&w==MARKUP_PROGRESS){markup_poll_intent();return 0;}
+ if(message==MARKUP_DISMISS){
+    if(markup_capture.ticket==(unsigned long)l&&!markup_pending&&!markup_ai.process&&!smart_active&&!ai_process&&!native_busy)
+        markup_capture_clear();
+    return 0;
+ }
  if(message==MARKUP_CANCEL){markup_cancel_intent((unsigned long)l);return 0;}
+ if(message==PACKAGING_REQUEST){
+    if(!packaging_pending&&packaging_window&&!native_busy){
+        packaging_pending=(int)w;
+        if(ProMacroLoad(L"~ Command `MWEAIPackaging`;")){
+            packaging_pending=0;
+            SetWindowTextW(packaging_result,L"Creo 没有接受包装命令，请重试。");
+        }
+    }
+    return 0;
+ }
  if(message==MARKUP_OPEN){markup_queue(1,NULL);return 0;}
  if(message==MARKUP_APPLY){markup_queue(2,(MarkupRequest *)l);return 0;}
  if(message==BWTL_IMITATION_REQUEST){imitation_queue_action((UINT)w);return 0;}
  return DefWindowProcW(window,message,w,l);
 }
+

@@ -32,7 +32,11 @@ static ProError ax_execute(ProMdl assembly,const PartCommand *cmd,wchar_t *repor
     case AX_MOVE:error=ax_move(assembly,cmd,scale,&out);break;
     case AX_STATE:error=ax_state(assembly,cmd,&out);break;
     case AX_CLEARANCE:error=ax_fit_pair(assembly,cmd,scale,&out);break;
-    case AX_INTERFERENCE:error=cmd->count==3?ax_fit_all(assembly,scale,&out):ax_fit_pair(assembly,cmd,scale,&out);break;
+    case AX_INTERFERENCE:
+        if(!wcscmp(cmd->arg[2],L"REPORT"))error=ax_interference_report(assembly,cmd,&out);
+        else if(ax_interference_review_command(cmd->arg[2]))error=ax_interference_review(assembly,cmd,&out);
+        else error=cmd->count==3?ax_fit_all(assembly,scale,&out):ax_fit_pair(assembly,cmd,scale,&out);
+        break;
     case AX_MASS:error=ax_mass(assembly,scale,&out);break;
     case AX_BOM:error=ax_bom(assembly,cmd,&out);break;
     case AX_STEP:error=ax_step(assembly,cmd,&out);break;

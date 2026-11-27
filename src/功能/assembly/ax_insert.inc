@@ -108,6 +108,12 @@ static ProError ax_place_model(ProMdl assembly,ProMdl model,ProMatrix wanted,int
 }
 
 static ProError ax_insert(ProMdl assembly,const PartCommand *cmd,double scale,PartText *out){
+    const wchar_t *name=cmd->arg[2];
+    const size_t length=wcslen(name);
+    if(length>5&&!_wcsnicmp(name,L"BSO",3)&&!_wcsicmp(name+length-2,L"XX")){
+        part_text_add(out,L"\n失败原因：提交的是 BSO 族表母件，装配需要与请求长度匹配的具体实例。请先核对精确规格，再按实际孔位和安装面装配。\n");
+        return PRO_TK_BAD_INPUTS;
+    }
     ProMdl model=NULL;
     ProAsmcomp feature={0};
     ProMassProperty geometry;

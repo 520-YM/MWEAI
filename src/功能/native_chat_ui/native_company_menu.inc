@@ -2,7 +2,7 @@ enum {
     COMPANY_OPEN_STANDARDS=1001,COMPANY_OPEN_TECHNICAL,COMPANY_OPEN_ROOT,
     COMPANY_OPEN_FASTENER_FIRST,
     COMPANY_RULE_VIEW=1101,COMPANY_RULE_EDIT,COMPANY_RULE_RESTORE,
-    COMPANY_FASTENER_MODEL_FIRST=2000
+    COMPANY_PRESSFIT_HELP=1201,COMPANY_FASTENER_MODEL_FIRST=2000
 };
 
 typedef struct {
@@ -57,6 +57,7 @@ static HMENU native_company_menu_create(const CompanyFastenerCatalog *catalog){
             if(status&&!AppendMenuW(category,MF_STRING|MF_GRAYED,0,status))goto fail;
         }
     }else if(!AppendMenuW(menu,MF_STRING,COMPANY_OPEN_FASTENER_FIRST,L"紧固件"))goto fail;
+    if(!AppendMenuW(menu,MF_STRING,COMPANY_PRESSFIT_HELP,L"压铆装配与选件…"))goto fail;
     HMENU rules=native_feature_add_submenu(menu,L"建模规则");
     if(!rules||
        !AppendMenuW(rules,MF_STRING,COMPANY_RULE_VIEW,L"查看生效规则")||

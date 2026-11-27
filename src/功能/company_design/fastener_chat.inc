@@ -187,11 +187,43 @@ static void fastener_open_model(const wchar_t *path,HANDLE reference,int save_pr
 }
 
 #include "fastener_bso_family.inc"
+#include "pressfit_library.inc"
 #include "fastener_bso_placement.inc"
+#include "pressfit_placement.inc"
 #include "fastener_bso_chat.inc"
+#include "pressfit_acceptance.inc"
+#include "pressfit_chat.inc"
+
+static int company_fastener_selfcheck_chat(const wchar_t *text){
+    const wchar_t *p=model_request_action_start(text);
+    if(!assembly_take(&p,L"检查公司库访问")&&!assembly_take(&p,L"诊断公司库访问")&&
+       !assembly_take(&p,L"检查紧固件库"))return 0;
+    if(!fastener_chat_end(p))return 0;
+    if(native_busy||smart_active||ai_process){append(L"请等待当前任务完成。");return 1;}
+    smart_begin(text);
+    smart_local_plan=1;
+    company_root_count=0;
+    append_card(L"你",text);
+    save_turn(L"用户",text);
+    native_prompt_set(L"");
+    wchar_t report[2400]=L"",path[MAX_PATH];
+    PartText out={report,_countof(report),0};
+    ProError error=company_library_check(L"公司库",&out);
+    if(!error){
+        if(company_fastener_resolve_report(COMPANY_OPEN_FASTENER_FIRST+4,path,&out))
+            part_text_add(&out,L"压铆件分类可读取：%ls\n",path);
+    }
+    smart_record_tool(report);
+    smart_reply(report);
+    return 1;
+}
 
 static int fastener_chat(const wchar_t *text){
+    if(company_fastener_selfcheck_chat(text))return 1;
+    if(pressfit_acceptance_chat(text))return 1;
+    if(fastener_pressfit_chat(text,1))return 1;
     if(fastener_bso_chat(text))return 1;
+    if(fastener_pressfit_chat(text,0))return 1;
     FastenerChatRequest request;
     if(!fastener_chat_parse(text,&request))return 0;
     if(native_busy||smart_active||ai_process){

@@ -131,6 +131,16 @@ try{
     $start.UseShellExecute=$false
     $start.WorkingDirectory=$isolation.Workspace
     $start.EnvironmentVariables['HOME']=$isolation.Home
+    if(Test-Path -LiteralPath (Join-Path $state.Directory 'scripts\connection\Start-CreoComResident.ps1') -PathType Leaf){
+        $homeDrive=[IO.Path]::GetPathRoot($isolation.Home)
+        $start.EnvironmentVariables['HOMEDRIVE']=$homeDrive.TrimEnd('\')
+        $start.EnvironmentVariables['HOMEPATH']=$isolation.Home.Substring($homeDrive.Length-1)
+        $creoRoot=Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))
+        $communications=Join-Path $creoRoot 'Common Files\x86e_win64\obj\pro_comm_msg.exe'
+        if(Test-Path -LiteralPath $communications -PathType Leaf){
+            $start.EnvironmentVariables['PRO_COMM_MSG_EXE']=$communications
+        }
+    }
     $start.EnvironmentVariables['PTC_CREO_ALT_SETTINGS_PATH']=$isolation.Alternate
     $start.EnvironmentVariables['PTC_WF_ROOT']=$isolation.Cache
     $start.EnvironmentVariables['BWTL_PROFILE_ROOT']=$isolation.ProfileRoot

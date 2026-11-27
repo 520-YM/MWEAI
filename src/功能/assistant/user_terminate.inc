@@ -1,6 +1,14 @@
 __declspec(dllexport) void user_terminate(void) {
+    if(background_process){CloseHandle(background_process);background_process=NULL;}
+    local_control_stop();
+    drawing_number_clear();
+    bwtl_live_watch_stop();
+    panel_flow_cancel();
+    bwtl_save_watch_stop();
+    fastener_pressfit_highlight_clear();
     markup_ai_cleanup();
     markup_capture_clear();
+    if(markup_last_holes.stamp)ProVerstampFree(&markup_last_holes.stamp);
     foundation_reset();
     part_snapshot_clear(&request_snapshot);
     default_part_cancel();
@@ -17,3 +25,4 @@ __declspec(dllexport) void user_terminate(void) {
     trace("user_terminate", 0);
     runtime_isolation_end();
 }
+

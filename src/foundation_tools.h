@@ -156,6 +156,8 @@ typedef struct {ProMdl model;PartText *out;int count;} FdRefList;
 #include "organize_tools.h"
 #include "fabrication_tools.h"
 #include "功能/sheetmetal/sh_four_holes_current.inc"
+static ProError or_outline(ProMdl model,ProOutline bounds);
+#include "功能/sheetmetal/u_reinforcement.inc"
 #include "quick_parts_tools.h"
 
 #include "sheetmetal_production_tools.h"

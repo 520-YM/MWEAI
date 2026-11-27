@@ -26,6 +26,10 @@ static ProError part_execute(const PartCommand *cmd,const PartSnapshot *snapshot
     }
     if((e=part_check_binding(cmd,snapshot,&model))){swprintf_s(text,capacity,L"未执行：活动模型、工作目录或模型版本与请求时不一致。请针对当前模型重新发送指令（错误码%d）。",e);return e;}
     int assembly=cmd->verb==PART_FOUNDATION?ax_kind(cmd->arg[0]):AX_NONE;
+    if(assembly==AX_INTERFERENCE&&ax_interference_review_command(cmd->arg[2])&&snapshot->window_model==model){
+        PartText out={text,capacity,0};
+        return ax_interference_review(model,cmd,&out);
+    }
     if(cmd->verb==PART_DISPLAY&&snapshot->type==PRO_MDL_ASSEMBLY&&snapshot->window_model==model){
         PartText out={text,capacity,0};
         return ax_open_component(model,cmd->arg[2],&out);

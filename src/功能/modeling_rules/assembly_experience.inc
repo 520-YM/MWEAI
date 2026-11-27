@@ -129,8 +129,7 @@ static int experience_recent(wchar_t paths[12][MAX_PATH],wchar_t directory[MAX_P
 static int experience_command(const wchar_t *text,const wchar_t **body){
     static const wchar_t *phrases[]={
         L"把装配经验写入建模规则",L"把这个装配经验写入建模规则",L"把这条装配经验写入建模规则",
-        L"将装配经验写入建模规则",L"保存装配经验",L"写入装配经验",
-        L"把这个写入到BWTL建模规则",L"对这个写入到BWTL建模规则"
+        L"将装配经验写入建模规则",L"保存装配经验",L"写入装配经验"
     };
     wchar_t compact[6001];
     size_t n=0;
@@ -206,7 +205,8 @@ static void experience_prompt_write(FILE *prompt,const wchar_t *request){
     int count=experience_recent(paths,directory,&total);
     wchar_t *record=calloc(EXPERIENCE_TEXT_MAX,sizeof(wchar_t));
     if(!record)return;
-    for(int i=0;i<count;i++)if(experience_read(paths[i],record,EXPERIENCE_TEXT_MAX)){
+    for(int i=0;i<count;i++)if(experience_read(paths[i],record,EXPERIENCE_TEXT_MAX)&&
+        !wcsstr(record,L"\n\n[BWTL_RULE_NOTE_V1]\n")){
         fwprintf(prompt,L"\n<用户保存的装配经验 文件=\"%ls\">\n%.*ls\n</用户保存的装配经验>\n",
             paths[i],1600,record);
     }

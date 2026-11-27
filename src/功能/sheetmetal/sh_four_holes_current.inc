@@ -156,6 +156,65 @@ static ProError sh_four_names(ProMdl model,ProName cut,ProName sketch){
     return PRO_TK_E_FOUND;
 }
 
+static void sh_four_refs(PartCommand *refs,const PanelFrame *frame,const FastenerPlan *plan,int orientation){
+    swprintf_s(refs->arg[3],PART_TOKEN_MAX,L"SURFACE:%d",frame->face_id);
+    swprintf_s(refs->arg[5],PART_TOKEN_MAX,L"SURFACE:%d",orientation);
+    swprintf_s(refs->arg[6],PART_TOKEN_MAX,L"%.15g",-plan->box_width/2);
+    swprintf_s(refs->arg[7],PART_TOKEN_MAX,L"%.15g",-plan->box_height/2);
+}
+
+/* Select a centered layout using the same trimmed-face and thickness checks
+   as the actual operation. This function never creates a Creo feature. */
+static ProError sh_four_choose_pitch(ProMdl model,double diameter,double *pitch_x,double *pitch_y,
+    double *width,double *height){
+    ShFourFaces faces={.model=model};
+    PanelFrame frame={0};
+    FastenerPlan plan={.margin=0.01};
+    PartCommand refs={0};
+    ProSolidBody body;
+    ProName name,sketch;
+    int orientation;
+    FdTxn tx={0};
+    ProError error=fab_thickness(model,&faces.mm,&faces.thickness);
+    if(!error)error=qa_single_body(model,&body);
+    if(!error)error=sh_four_names(model,name,sketch);
+    if(!error)error=sh_begin(&tx,model,name,PRO_FEAT_CUT);
+    if(!error&&(!tx.has_volume||!isfinite(tx.volume)||tx.volume<=0))error=PRO_TK_BAD_CONTEXT;
+    if(!error){
+        faces.volume=tx.volume*pow(faces.mm,3);
+        error=sh_four_frame(&faces,&body,&frame,&plan.box_width,&plan.box_height,&orientation);
+    }
+    if(!error){
+        const double span_x=plan.box_width-diameter-2*plan.margin;
+        const double span_y=plan.box_height-diameter-2*plan.margin;
+        const double preferred[][2]={
+            {0.60,0.60},{0.72,0.72},{0.48,0.48},{0.60,0.72},{0.72,0.60},{0.48,0.60},
+            {0.60,0.48},{0.84,0.84},{0.36,0.36},{0.36,0.72},{0.72,0.36},{0.92,0.92}
+        };
+        sh_four_refs(&refs,&frame,&plan,orientation);
+        error=PRO_TK_E_NOT_FOUND;
+        for(size_t i=0;i<_countof(preferred);i++){
+            const double x=floor(span_x*preferred[i][0]*10)/10;
+            const double y=floor(span_y*preferred[i][1]*10)/10;
+            if(x<diameter+0.01||y<diameter+0.01)continue;
+            pn_hole_rectangle(&plan.panel,0,0,x,y,diameter);
+            if(fx_check_boundary(&tx,&refs,&frame,&plan))continue;
+            int valid=1;
+            for(int hole=0;hole<plan.panel.count&&valid;hole++)
+                valid=!pn_profile_probes(&tx,&frame,&plan.panel.through[hole],faces.thickness,0);
+            if(!valid)continue;
+            *pitch_x=x;
+            *pitch_y=y;
+            *width=plan.box_width;
+            *height=plan.box_height;
+            error=PRO_TK_NO_ERROR;
+            break;
+        }
+    }
+    fd_cleanup(&tx,0);
+    return error;
+}
+
 static ProError sh_four_holes_current(ProMdl model,double diameter,double pitch_x,double pitch_y,
     wchar_t *report,size_t capacity){
     ProMdl current=NULL;
@@ -197,10 +256,7 @@ static ProError sh_four_holes_current(ProMdl model,double diameter,double pitch_
     faces.volume=tx.volume*pow(faces.mm,3);
     SH4(L"定位单一平板的矩形边界与板面",sh_four_frame(&faces,&body,&frame,
         &plan.box_width,&plan.box_height,&orientation));
-    swprintf_s(refs.arg[3],PART_TOKEN_MAX,L"SURFACE:%d",frame.face_id);
-    swprintf_s(refs.arg[5],PART_TOKEN_MAX,L"SURFACE:%d",orientation);
-    swprintf_s(refs.arg[6],PART_TOKEN_MAX,L"%.15g",-plan.box_width/2);
-    swprintf_s(refs.arg[7],PART_TOKEN_MAX,L"%.15g",-plan.box_height/2);
+    sh_four_refs(&refs,&frame,&plan,orientation);
     pn_hole_rectangle(&plan.panel,0,0,pitch_x,pitch_y,diameter);
     SH4(L"检查四孔与板边、现有开口之间的净距",fx_check_boundary(&tx,&refs,&frame,&plan));
     for(int i=0;i<plan.panel.count;i++)

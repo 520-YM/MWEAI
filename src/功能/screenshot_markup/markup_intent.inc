@@ -91,12 +91,10 @@ static int markup_same_marks(const MarkupRequest *a,const MarkupRequest *b){
 
 static double markup_current_mm(const MarkupCapture *capture,int index,double scale){
     const MarkupHole *hole=&capture->image->holes[index];
-    ProDimension dim;
-    ProDimensiontype type;
-    if(hole->dimension<0||ProModelitemInit(capture->model,hole->dimension,PRO_DIMENSION,&dim)||
-       ProDimensionTypeGet(&dim,&type)||(type!=PRODIMTYPE_RADIUS&&type!=PRODIMTYPE_DIAMETER))return 0;
-    return hole->old_value*scale*(type==PRODIMTYPE_RADIUS?2:1);
+    if(hole->occurrence.depth)scale=hole->occurrence.mm_per_native;
+    return hole->dimension>=0?hole->diameter*scale:0;
 }
+
 
 static int markup_save_intent_image(const MarkupImage *image,const MarkupRequest *request,const wchar_t *path){
     double scale=fmin(1,1500.0/max(image->width,image->height));
@@ -162,6 +160,7 @@ static double markup_edit_current(const MarkupCapture *capture,const MarkupReque
     int index=markup_match_opening(capture->image,mark);
     if(index<0)return 0;
     const MarkupOpening *opening=&capture->image->openings[index];
+    if(opening->occurrence.depth)scale=opening->occurrence.mm_per_native;
     int axis=edit->measure-MARKUP_WIDTH;
     return opening->dimension[axis]>=0?opening->size[axis]*scale:0;
 }
@@ -226,6 +225,7 @@ static void markup_prompt_opening(FILE *prompt,const MarkupOpening *opening,doub
     dx=fabs(opening->corners[3][0]-opening->corners[0][0]);
     dy=fabs(opening->corners[3][1]-opening->corners[0][1]);
     const wchar_t *y_direction=dx>2*dy?L"图中近水平":dy>2*dx?L"图中近竖直":L"图中斜向";
+    if(opening->occurrence.depth)scale=opening->occurrence.mm_per_native;
     fwprintf(prompt,L"矩形贯穿开口，特征 %d。X %.8g mm（%ls，%ls），Y %.8g mm（%ls，%ls）。\n",
         opening->feature,opening->size[0]*scale,x_direction,opening->dimension[0]>=0?L"可编辑":L"无独立驱动尺寸",
         opening->size[1]*scale,y_direction,opening->dimension[1]>=0?L"可编辑":L"无独立驱动尺寸");
@@ -256,6 +256,7 @@ static int markup_intent_prompt(const MarkupCapture *capture,const MarkupRequest
     double scale=markup_mm_scale(capture->model);
     fwprintf(prompt,L"模型名：%ls。截图 %d×%d，标注数 %d。位置百分比从截图左上角起算。\n",
         image->name,image->width,image->height,request->count);
+    if(capture->assembly)fputws(L"这是装配截图。圆孔和开口属于各自的原生组件实例。组件路径及共用范围由 Creo 在写入前复核。\n",prompt);
     for(int i=0;i<request->count;i++){
         const MarkupMark *mark=&request->marks[i];
         int index=markup_match(image,mark);
@@ -265,8 +266,15 @@ static int markup_intent_prompt(const MarkupCapture *capture,const MarkupRequest
         double mm=index>=0?markup_current_mm(capture,index,scale):0;
         fwprintf(prompt,L"%d 号标注，位置 %.1f%%、%.1f%%。\n",i+1,100*x/image->width,100*y/image->height);
         if(index>=0)fwprintf(prompt,L"圆孔，特征 %d，孔径 %.8g mm，%ls。\n",
-            image->holes[index].feature,image->holes[index].diameter*scale,mm>0?L"可编辑":L"无独立孔径驱动尺寸");
+            image->holes[index].feature,image->holes[index].diameter*(image->holes[index].occurrence.depth?image->holes[index].occurrence.mm_per_native:scale),mm>0?L"可编辑":L"无独立孔径驱动尺寸");
         if(opening>=0)markup_prompt_opening(prompt,&image->openings[opening],scale);
+        int axis=0;
+        int edge=markup_opening_edge(image,mark,&axis);
+        if(edge>=0&&edge==opening)fwprintf(prompt,L"箭头还指向该开口的 %ls 向直边。\n",axis?L"Y":L"X");
+        if(index==-1&&opening==-1){
+            MarkupFace face;
+            if(!markup_face_at(capture,mark,&face))fwprintf(prompt,L"Creo 命中实体面 SURFACE:%d，特征 %d %ls。只读。\n",face.surface,face.feature,face.name);
+        }
         if(index==-2||opening==-2)fputws(L"包含多个同类候选，不能唯一定位。\n",prompt);
         if(index==-1&&opening==-1)fputws(L"该标注未绑定到可识别的圆孔或矩形贯穿开口。\n",prompt);
     }
@@ -274,7 +282,7 @@ static int markup_intent_prompt(const MarkupCapture *capture,const MarkupRequest
     for(int i=0;i<image->count&&i<16;i++){
         const MarkupHole *hole=&image->holes[i];
         fwprintf(prompt,L"圆孔，位置 %.1f%%、%.1f%%，孔径 %.8g mm。\n",
-            100*hole->x/image->width,100*hole->y/image->height,hole->diameter*scale);
+            100*hole->x/image->width,100*hole->y/image->height,hole->diameter*(hole->occurrence.depth?hole->occurrence.mm_per_native:scale));
     }
     for(int i=0;i<image->opening_count&&i<8;i++){
         const MarkupOpening *opening=&image->openings[i];
@@ -288,7 +296,7 @@ static int markup_intent_prompt(const MarkupCapture *capture,const MarkupRequest
 }
 
 static int markup_start_intent(void){
-    if(!storage_directory_on_drive(runtime_data,storage_data_drive()))return 0;
+    if(!storage_directory_on_drive(runtime_data,L'E'))return 0;
     wchar_t exe[MAX_PATH],command[2048];
     if(!runtime_codex(exe))return 0;
     wchar_t base[MAX_PATH];
@@ -303,7 +311,7 @@ static int markup_start_intent(void){
     }
     wchar_t cache[MAX_PATH];
     if(swprintf_s(cache,_countof(cache),L"%ls\\markup-codex",runtime_data)<0||
-       (!CreateDirectoryW(cache,NULL)&&GetLastError()!=ERROR_ALREADY_EXISTS)||!storage_directory_on_drive(cache,storage_data_drive())){
+       (!CreateDirectoryW(cache,NULL)&&GetLastError()!=ERROR_ALREADY_EXISTS)||!storage_directory_on_drive(cache,L'E')){
         markup_ai_cleanup();
         return 0;
     }

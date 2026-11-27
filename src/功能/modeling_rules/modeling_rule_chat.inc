@@ -143,6 +143,7 @@ static int modeling_rule_chat(const wchar_t *text){
         }
     }
     if(!action)return 0;
+    if(action==RULE_CHAT_SAVE&&!change.mode&&!change.revision[0]&&file_write_rule_requested(text))return 0;
     if(native_busy||smart_active||ai_process){append(L"请等待当前任务完成。");return 1;}
     wchar_t reply[1500]=L"";
     if(action==RULE_CHAT_VIEW)modeling_rule_describe(reply,_countof(reply));
@@ -185,6 +186,9 @@ static void modeling_rule_prompt_write(FILE *prompt){
     if(modeling_rule_read(&state)!=MODELING_RULE_OK)return;
     fwprintf(prompt,L"\n<BWTL生效建模规则>\n规则第 %u 版。空白新零件默认：%ls。默认图号版本 %ls。"
         L"明确说单独创建按独立件处理；明确指定在当前装配里建子件时绑定该装配。"
-        L"写入、修改和恢复规则由 MWEAI 本机聊天命令执行，禁止在对话中假称保存成功。\n</BWTL生效建模规则>\n",
+        L"整句要求创建新零件时，按这条规则准备新模型；改尺寸、加孔、改板厚或「在刚才的基础上」是对已有目标继续加工，读取当前快照和前一轮原生回执后承接。"
+        L"「在里面建子件」先核对当前活动装配；「刚才那个」「继续」沿用已核对的实际模型身份，不能只凭名称猜另一个会话的对象。"
+        L"若只问原因、能力或做法，则用实际数据回答；只有本轮明确执行时才修改 Creo。"
+        L"默认流程和版本由 MWEAI 本机规则命令管理。其他建模规则可用 bwtl_write_file 持久化。以本机回执为准。\n</BWTL生效建模规则>\n",
         state.generation,modeling_rule_flow(state.current.mode),state.current.revision);
 }

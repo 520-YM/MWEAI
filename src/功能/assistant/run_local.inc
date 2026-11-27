@@ -11,7 +11,12 @@
 #include "../sheetmetal/sh_four_holes_chat.inc"
 #include "component_open_chat.inc"
 #include "return_assembly_chat.inc"
+#include "../ai_drawing/ai_cad_u_chat.inc"
 static void run_local_dispatch(char *dialog, char *component, ProAppData data) {
+    if(local_control_com_busy()){
+        append(L"当前会话正在通过 Codex 切换 Creo 窗口。输入仍在，请等窗口切换完成后发送。");
+        return;
+    }
     wchar_t *value = NULL;
     ModelPlan centered_plan={0};int centered;
     ProError error = native_prompt_get(&value) ? PRO_TK_NO_ERROR : PRO_TK_GENERAL_ERROR;
@@ -41,7 +46,26 @@ static void run_local_dispatch(char *dialog, char *component, ProAppData data) {
         }
     }
     native_request_timer_begin();
-    if(native_attachment_count()){ai_send(value);free(value);return;}
+    const int attachment_count=native_attachment_count();
+    if(panel_flow_busy()){free(value);return;}
+    if(!attachment_count&&!native_image_count&&local_control_background_chat(value)){free(value);return;}
+    if(!attachment_count&&!native_image_count&&local_control_interference_chat(value)){free(value);return;}
+    if(!attachment_count&&!native_image_count&&drawing_number_chat(value)){free(value);return;}
+    if(!wcsstr(value,L"〔待填：")&&reference_design_chat(value)){free(value);return;}
+    if(attachment_count&&pressfit_workspace_pdf_chat(value)){free(value);return;}
+    if(!attachment_count&&!native_image_count&&panel_flow_chat(value)){free(value);return;}
+    const RequestAssessment assessment=request_assess(value,attachment_count||native_image_count);
+    if(assessment.route==REQUEST_PLAN&&!attachment_count&&!native_image_count&&assessment.execution_requested&&
+       !assessment.readonly&&!assessment.ambiguous&&(file_write_rule_chat(value)||assembly_child_chat(value)||assembly_default_chat(value))){
+        free(value);
+        return;
+    }
+    if(attachment_count||assessment.route==REQUEST_PLAN){
+        ai_send_request(value,&assessment);
+        free(value);
+        return;
+    }
+    if(!native_image_count&&file_write_rule_chat(value)){free(value);return;}
     if(!native_image_count&&experience_chat(value)){free(value);return;}
     if(!native_image_count&&modeling_rule_chat(value)){free(value);return;}
     if(!smart_active&&!ai_process&&wcscmp(value,L"继续上次任务")&&!(smart_paused&&smart_resume_request(value))){
@@ -59,12 +83,15 @@ static void run_local_dispatch(char *dialog, char *component, ProAppData data) {
         return;
     }
     if(!native_image_count&&default_part_resume_chat(value)){free(value);return;}
+    if(!native_image_count&&(chat_followup_info(value)||company_pair_number_chat(value))){free(value);return;}
     if(!wcscmp(value,L"继续上次任务")||(smart_paused&&smart_resume_request(value))){
         if(smart_active)append(L"当前任务仍在运行。");
         else if(smart_resume()){
             wcsncpy_s(smart_latest_request,_countof(smart_latest_request),value,_TRUNCATE);
             append_card(L"你",value);
             save_turn(L"用户",value);
+        }else if(!smart_paused&&chat_task_followup_pending()){
+            ai_send_request(value,&assessment);free(value);return;
         }else append(L"本会话没有可继续的任务，或活动模型、版本、工作目录与暂停时不同。");
         native_prompt_set(L"");free(value);return;
     }
@@ -76,8 +103,11 @@ static void run_local_dispatch(char *dialog, char *component, ProAppData data) {
     if(!wcscmp(value,L"应用已验升级")||!wcscmp(value,L"功能开发")||!wcscmp(value,L"功能开发（升级插件）")){
         append(L"MWEAI 更新在 Codex 中处理。");native_prompt_set(L"");free(value);return;
     }
-    if(return_assembly_chat(value)||component_open_chat(value)){free(value);return;}
+    if(session_window_chat(value)||return_assembly_chat(value)||component_open_chat(value)){free(value);return;}
     if(fastener_chat(value)){free(value);return;}
+    if(!native_image_count&&company_device_chat(value)){free(value);return;}
+    if(!native_image_count&&bwtl_delivery_chat(value)){free(value);return;}
+    if(!native_image_count&&cad_u_chat(value)){free(value);return;}
     if(default_part_chat(value)){free(value);return;}
     int inventory_intent=native_image_count?0:catalog_quick_intent(value,conversation);
     if(inventory_intent){
@@ -149,7 +179,7 @@ static void run_local_dispatch(char *dialog, char *component, ProAppData data) {
     else if (wcscmp(value,L"读取当前模型")==0 || wcscmp(value,L"读取当前零件")==0 || wcscmp(value,L"查看模型信息")==0 || wcscmp(value, L"model") == 0 || wcscmp(value,L"读取模型")==0 || wcscmp(value,L"读取基本信息")==0 || wcscmp(value,L"读取尺寸")==0 || wcscmp(value,L"读取质量")==0 || wcscmp(value, L"当前模型") == 0)
         {read_model(dialog,component,data);native_prompt_set(L"");}
     else
-        ai_send(value);
+        ai_send_request(value,&assessment);
     free(value);
 }
 

@@ -25,16 +25,17 @@ static void native_layout(void){
     if(w<UI(40)||h<UI(300))return;
     has_images=native_attachment_count()>0;
     prompt_top=h-UI(has_images?232:158);
-    const int gutter=UI(20), width=w-2*gutter, history_top=UI(94);
+    const int gutter=UI(20), width=w-2*gutter, history_top=UI(132);
     const int title_space=width-UI(224);
     const int title_width=title_space<UI(320)?title_space:UI(320);
-    native_layout_footer(w,h);
+    if(!packaging_visible())native_layout_footer(w,h);
     MoveWindow(native_title,gutter,UI(9),title_width,UI(32),TRUE);
     MoveWindow(native_elapsed_label,w-gutter-UI(212),UI(17),UI(212),UI(24),TRUE);
-    button_width=(width-4*UI(8))/5;
+    button_width=(width-(CHAT_TOP_COLUMNS-1)*UI(8))/CHAT_TOP_COLUMNS;
     if(button_width>UI(112))button_width=UI(112);
-    if(button_width>0)for(int i=0;i<5;i++)
-        MoveWindow(native_top_buttons[i],gutter+i*(button_width+UI(8)),UI(44),button_width,UI(30),TRUE);
+    if(button_width>0)for(int i=0;i<_countof(native_top_buttons);i++)
+        MoveWindow(native_top_buttons[i],gutter+(i%CHAT_TOP_COLUMNS)*(button_width+UI(8)),UI(44+38*(i/CHAT_TOP_COLUMNS)),button_width,UI(30),TRUE);
+    if(packaging_visible()){InvalidateRect(native_window,NULL,FALSE);return;}
     MoveWindow(native_history,gutter,history_top,width,prompt_top-history_top-UI(10),TRUE);
     MoveWindow(native_prompt,gutter,prompt_top,width,UI(106),TRUE);
     GetClientRect(native_prompt,&r);
@@ -44,7 +45,7 @@ static void native_layout(void){
     r.bottom-=UI(8);
     if(r.right>r.left&&r.bottom>r.top)SendMessageW(native_prompt,EM_SETRECT,0,(LPARAM)&r);
     if(has_images)MoveWindow(native_preview,gutter,h-UI(120),width,UI(68),TRUE);
-    ShowWindow(native_preview,has_images?SW_SHOWNA:SW_HIDE);
+    ShowWindow(native_preview,has_images&&!packaging_visible()?SW_SHOWNA:SW_HIDE);
     if(native_render_source)native_ui_history(native_render_source);
     // The footer buttons are owner-drawn. Repaint all of them at their new positions.
     RECT footer={0,h-UI(49),w,h};

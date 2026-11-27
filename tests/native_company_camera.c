@@ -7,7 +7,7 @@ static const wchar_t camera_case_number[]=L"M26A0100000V00";
 static const wchar_t camera_case_rename[]=L"M26A0200000V00";
 
 static const wchar_t camera_case_saved_rename[]=L"M26A0300000V00";
-static wchar_t camera_fixture_source[MAX_PATH];
+static const wchar_t camera_fixture_source[]=L"E:\\BWTL-Data\\BWTL-55-Learning\\models";
 
 static ProError camera_verify_product_files(const wchar_t *name,const wchar_t *extension){
     ProPath work,pattern;
@@ -33,12 +33,6 @@ static ProError camera_test_library(ProPath local){
     if(swprintf_s(local,PRO_PATH_SIZE,L"%ls\\环境摄像头",library)<0)return PRO_TK_BAD_INPUTS;
     if(!imitation_library_folder(root)||!imitation_library_folder(standards)||
        !imitation_library_folder(library)||!imitation_library_folder(local))return PRO_TK_CANT_WRITE;
-    if(!GetEnvironmentVariableW(L"BWTL_TEST_CAMERA_MODELS",camera_fixture_source,_countof(camera_fixture_source)))
-        return PRO_TK_BAD_INPUTS;
-    if((error=camera_reference_settings(camera_fixture_source)))return error;
-    wchar_t config[PRO_PATH_SIZE],digest[65];
-    if(swprintf_s(config,_countof(config),L"%ls\\camera-models.ini",camera_fixture_source)<0)return PRO_TK_BAD_INPUTS;
-    if((error=ax_pack_copy(config,L"camera-models.ini",local,digest)))return error;
     for(size_t i=0;i<_countof(camera_references);i++){
         ProPath from;
         wchar_t digest[65];
@@ -97,13 +91,13 @@ static ProError camera_test_components(ProMdl assembly,ProMdl *bracket,PartText 
             if(!error)error=ax_default_verify(&component);
             if(!error)*bracket=child;
             brackets++;
-        }else if(!_wcsicmp(name,camera_references[1].name)){
+        }else if(!_wcsicmp(name,L"2M0859-V1")){
             error=camera_test_mount_refs(assembly,&component,*bracket,3);
             electronics++;
-        }else if(!_wcsicmp(name,camera_references[2].name)){
+        }else if(!_wcsicmp(name,L"BSO-M2-6L")){
             error=camera_test_mount_refs(assembly,&component,*bracket,2);
             standoffs++;
-        }else if(!_wcsicmp(name,camera_references[3].name)){
+        }else if(!_wcsicmp(name,L"S-M3-1ZI")){
             error=camera_test_mount_refs(assembly,&component,*bracket,2);
             nuts++;
         }else error=PRO_TK_E_NOT_FOUND;

@@ -28,6 +28,17 @@ static int chat_task_matches(const PartSnapshot *snapshot){
 static void chat_task_record_bound(ProMdl model,ProMdl window,const wchar_t *name,
     const wchar_t *directory,const wchar_t *action,ProError error,const wchar_t *receipt,int unsafe,int step){
     if(!model||!window||!name[0]||!directory[0])return;
+    ProPath current;
+    ProMdl loaded=NULL;
+    const ProMdlfileType types[]={PRO_MDLFILE_PART,PRO_MDLFILE_ASSEMBLY};
+    if(!ProDirectoryCurrentGet(current)&&!_wcsicmp(current,directory)){
+        for(size_t i=0;i<_countof(types);i++){
+            if(!ProMdlnameInit((wchar_t *)name,types[i],&loaded)&&loaded==model){
+                chat_task_record_target(loaded,action,error,receipt,unsafe);
+                break;
+            }
+        }
+    }
     if(model!=chat_task_evidence.model||window!=chat_task_evidence.window||
         _wcsicmp(name,chat_task_evidence.name)||_wcsicmp(directory,chat_task_evidence.directory)){
         chat_task_forget();

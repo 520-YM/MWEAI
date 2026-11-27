@@ -23,7 +23,13 @@ static HWND native_window, native_history, native_prompt, native_title;
 static HWND native_stop_button,native_preview,native_elapsed_label,native_attach_button,native_clear_button;
 static volatile LONG native_busy;
 static HWND native_buttons[3];
-static HWND native_top_buttons[5];
+#define CHAT_TOP_COLUMNS 7
+#define CHAT_TOP_ROWS 2
+static HWND native_top_buttons[CHAT_TOP_COLUMNS*CHAT_TOP_ROWS];
+static void packaging_open(void);
+static void packaging_layout(void);
+static int packaging_visible(void);
+#define CHAT_PACKAGING 4199
 static HFONT native_font, native_title_font;
 static HBRUSH native_background, native_header_brush;
 static int native_dpi=96;
@@ -118,6 +124,10 @@ static void native_choose_attachments(void){
 #include "功能/native_chat_ui/native_company_menu.inc"
 #include "功能/native_chat_ui/native_industrial_theme.inc"
 
+#define IMITATION_REFERENCE_DESIGN 5990
+#define IMITATION_DRAWING_NUMBER_AUDIT 5991
+#define IMITATION_DRAWING_NUMBER_PREVIEW 5992
+#define IMITATION_DRAWING_NUMBER_APPLY 5993
 #include "功能/native_chat_ui/native_imitation_menu.inc"
 
 #include "功能/screenshot_markup/markup_editor.inc"

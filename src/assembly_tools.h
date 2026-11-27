@@ -91,5 +91,7 @@
 static void ax_return_note_open(ProMdl root,int root_window,ProMdl child,int child_window,const wchar_t *occurrence,const wchar_t *directory);
 #include "功能/assembly/ax_component_open.inc"
 #include "功能/assembly/ax_component_return.inc"
+#include "功能/assembly/ax_session_windows.inc"
+#include "功能/assembly/ax_interference_report.inc"
 #include "功能/assembly/ax_execute.inc"
 #endif

@@ -6,14 +6,14 @@ static LRESULT CALLBACK native_window_proc(HWND window,UINT message,WPARAM w,LPA
     case CHAT_BUSY:
         if(w)native_request_timer_start_ui();else native_request_timer_finish_ui();
         InterlockedExchange(&native_busy,(LONG)w);
-        SetWindowTextW(native_buttons[1],w?L"处理中…":L"发送给 AI");
+        SetWindowTextW(native_buttons[1],w==4?L"本机操作中…":w?L"处理中…":L"发送给 AI");
         EnableWindow(native_buttons[1],!w);
         EnableWindow(native_top_buttons[2],!w);
         SetWindowTextW(native_top_buttons[3],w==3?L"仿照中…":L"仿照模型");
         EnableWindow(native_top_buttons[3],!w);
         EnableWindow(native_attach_button,!w);
         EnableWindow(native_clear_button,!w);
-        EnableWindow(native_stop_button,w!=0&&w!=3);return 0;
+        EnableWindow(native_stop_button,w!=0&&w!=3&&w!=4);return 0;
     case CHAT_ATTACHMENTS_SENT:native_attachments_clear();native_attachment_changed();return 0;
     case CHAT_DESTROY:DestroyWindow(window);PostQuitMessage(0);return 0;
     case WM_PAINT:{
@@ -70,7 +70,10 @@ static LRESULT CALLBACK native_window_proc(HWND window,UINT message,WPARAM w,LPA
         native_theme_button(d);
         return TRUE;
     }
-    case WM_SIZE:native_layout();return 0;
+    case WM_SIZE:native_layout();packaging_layout();return 0;
+    case WM_EXITSIZEMOVE:
+        if(packaging_visible()){packaging_layout();RedrawWindow(window,NULL,NULL,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_UPDATENOW);}
+        return 0;
     case WM_GETMINMAXINFO:
         ((MINMAXINFO *)l)->ptMinTrackSize.x=MulDiv(640,native_dpi,96);
         ((MINMAXINFO *)l)->ptMinTrackSize.y=MulDiv(620,native_dpi,96);
@@ -116,6 +119,7 @@ static LRESULT CALLBACK native_window_proc(HWND window,UINT message,WPARAM w,LPA
         return 0;
     }
     case WM_COMMAND:
+        if(LOWORD(w)==CHAT_PACKAGING){if(!native_busy)packaging_open();return 0;}
         if(LOWORD(w)==CHAT_RESERVED_3){if(!native_busy&&!markup_waiting)native_markup_post(MARKUP_OPEN,0);return 0;}
         if(LOWORD(w)==CHAT_FEATURES){native_feature_menu(native_top_buttons[0]);return 0;}
         if(LOWORD(w)==CHAT_COMPANY){native_company_action();return 0;}
